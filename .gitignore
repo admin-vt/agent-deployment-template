@@ -1,0 +1,10 @@
+# Local env — populated from Doppler by scripts/worktree-setup.sh
+.env
+.env.*
+!.env.example
+
+# Doppler local binding
+.doppler.yaml
+
+node_modules/
+.vercel/

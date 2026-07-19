@@ -7,6 +7,16 @@ Sequence: set up accounts → gather the docs → verify the load-bearing pieces
 
 ---
 
+## Development environment & secrets
+
+Build sessions run on a VT VPS, accessed remotely through **Orca**. Orca creates a **fresh git worktree per session**, so local env state never survives between sessions — secrets live in **Doppler** and every worktree pulls them on creation.
+
+- **Doppler project:** `agent-deployment-template` (workplace `vt`), configs `dev` / `stg` / `prd`. All credentials for the stack go here via the Doppler CLI (`doppler secrets set NAME --project agent-deployment-template --config dev`); nothing secret is ever committed.
+- **Worktree setup:** `scripts/worktree-setup.sh` — Orca runs it in each new worktree (safe to re-run manually). It binds the directory to the Doppler project and writes the current secrets to a local `.env` (gitignored, mode 600). Override the config with `DOPPLER_CONFIG=stg ./scripts/worktree-setup.sh`.
+- **Adding a credential:** set it in Doppler, then re-run the setup script in any worktree that needs it.
+
+---
+
 ## Phase 0 — Accounts & access
 
 All agency-owned (D9), one-time setup.
@@ -21,7 +31,7 @@ All agency-owned (D9), one-time setup.
 | GitHub (VT org) | Template repo, per-deployment clones, per-agent workspace repos |
 | Vercel | Hosts the onboarding surface |
 
-**Exit:** every credential exists, recorded in `.env.example` + a private secrets note.
+**Exit:** every credential exists and is stored in the Doppler project (`agent-deployment-template/dev`), with the variable names listed in `.env.example`.
 
 ---
 
