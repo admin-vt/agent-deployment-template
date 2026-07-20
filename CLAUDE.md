@@ -7,6 +7,7 @@ Viral Tilt's reusable template for deploying bespoke client agents. One deployme
 | Need | Go to |
 |---|---|
 | Product decisions, scope, what's permanently out | `REQUIREMENTS.md` |
+| Identity model (agent accounts, allowlists, org shape) | `docs/identity-model.md` |
 | Build phases and dev-environment/secrets workflow | `IMPLEMENTATION-PLAN.md` |
 | System architecture as built, live PoC endpoints | `docs/architecture.md` |
 | Per-client customization (skills, toolkits, models, surfaces) | `docs/customization.md` |

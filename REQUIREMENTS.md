@@ -31,6 +31,7 @@ Stand-up is **human-driven and agent-assisted**: the runbook takes a fresh clone
 | D9 | Vendor accounts | **Agency-owned.** VT owns the Mastra, Composio, WorkOS, Vercel, and GitHub accounts; each client is a project/tenant inside them. Clients pay their own model spend (D3). |
 | D10 | Reusability | **GitHub template repo + Claude Code runbook.** New client = clone, then the runbook provisions and wires the skeleton to live. Per-client agent design happens after, per case. |
 | D11 | Skills | **Standard `SKILL.md` files (agentskills.io), living in each client's repo.** The template ships one worked example. The standard format keeps every skill portable across frameworks. |
+| D12 | Identity | **One account per agent; humans are allowed conversants.** Each deployment has a single agent account (one WorkOS user, generated credential, client owner's email) that all tool authorizations and the client's model key scope to; a Slack email allowlist (default closed) decides who may talk to the agent. Each agent gets its own Composio project, so tool consent is structurally per-agent. Full model: `docs/identity-model.md`. |
 
 ---
 
