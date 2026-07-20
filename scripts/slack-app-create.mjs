@@ -51,6 +51,13 @@ if (missing.length) {
   console.error(`Missing args: ${missing.map((k) => `--${k}`).join(' ')}`);
   process.exit(1);
 }
+const placeholders = [...required, 'description'].filter((k) => String(args[k]).includes('CHANGE-ME'));
+if (placeholders.length) {
+  console.error(
+    `Placeholder values still present (${placeholders.map((k) => `--${k}`).join(', ')}) — fill in template.config.ts first.`,
+  );
+  process.exit(1);
+}
 
 const DOPPLER_CONFIG = process.env.DOPPLER_CONFIG || 'dev';
 // The config token lives in the template (operator) Doppler project, shared

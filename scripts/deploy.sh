@@ -10,6 +10,15 @@ PROJECT="${1:?usage: scripts/deploy.sh <mastra-project-slug>}"
 
 [ -f .env ] || { echo ".env missing — run ./scripts/worktree-setup.sh first" >&2; exit 1; }
 
+# The template is never deployed directly — refuse while placeholders remain.
+# Comment-only lines are allowed to mention CHANGE-ME; value lines are not.
+placeholders="$(grep -n 'CHANGE-ME' template.config.ts | grep -vE '^[0-9]+:\s*(\*|//|/\*)' || true)"
+if [ -n "$placeholders" ]; then
+  echo "template.config.ts still contains CHANGE-ME placeholders — fill in the per-client values first:" >&2
+  echo "$placeholders" >&2
+  exit 1
+fi
+
 # Runtime subset of .env. SLACK_BOT_TOKEN is the legacy fallback for
 # manually-installed Slack apps; button-installed tokens live in
 # agent-account metadata, not env.

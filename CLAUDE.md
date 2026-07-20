@@ -1,6 +1,6 @@
 # agent-deployment-template
 
-Viral Tilt's reusable template for deploying bespoke client agents. One deployment = one clone of this repo. `REQUIREMENTS.md` is the decision authority — if guidance here or anywhere else conflicts with it, REQUIREMENTS.md wins.
+Viral Tilt's reusable template for deploying bespoke client agents. One deployment = one clone of this repo — **the template itself is never deployed** (`template.config.ts` holds CHANGE-ME placeholders; the deploy script enforces this). `REQUIREMENTS.md` is the decision authority — if guidance here or anywhere else conflicts with it, REQUIREMENTS.md wins.
 
 ## Where things are
 

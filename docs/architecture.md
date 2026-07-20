@@ -1,6 +1,6 @@
 # Architecture — as built
 
-One deployment = one clone of this repo, wired to agency-owned vendor accounts. The PoC deployment (`vt-poc`) is the live reference.
+One deployment = one clone of this repo, wired to agency-owned vendor accounts. **The template itself is never deployed** — `template.config.ts` holds CHANGE-ME placeholders and the deploy script refuses while they remain. The live reference is the most recent runbook-produced deployment.
 
 ```
 Slack / other surfaces (Mastra channel adapters — added per client)
@@ -42,11 +42,12 @@ Onboarding surface (onboarding/, Next.js on Vercel)
 - **Per-deployment Slack app.** Each agent is its own Slack identity: an app created via the App Manifest API (`scripts/slack-app-create.mjs`), events pointed straight at this deployment's Mastra webhook (no shared app, no event router). The agent ships with only `SLACK_SIGNING_SECRET`; the bot token arrives when the client clicks "Add to Slack" and lives in agent-account metadata beside the allowlist and BYOK key (`getSlackBotToken`, `src/lib/identity.ts`). One manual step per app: Activate Public Distribution (UI-only). See `docs/slack-setup.md`.
 - **Config seam.** Every per-client value lives in `template.config.ts` (agent identity, model, toolkits, workspace repo, skills). The onboarding app mirrors the toolkit list via the `COMPOSIO_TOOLKITS` env var.
 
-## Live PoC endpoints
+## Endpoint shapes (per deployment)
 
-- Agent API: `https://vt-poc-agent.server.mastra.cloud/api/agents/assistant/generate`
+- Agent API: `https://<slug>-agent.server.mastra.cloud/api/agents/<agent-id>/generate`
 - Memory request shape: `{"messages": [...], "memory": {"thread": "<id>", "resource": "<user>"}}`
-- Onboarding: Vercel project `vt-poc-onboarding`
+- Slack webhook: `https://<slug>-agent.server.mastra.cloud/api/agents/<agent-id>/channels/slack/webhook`
+- Onboarding: Vercel project `<slug>-onboarding`
 
 ## Secrets
 

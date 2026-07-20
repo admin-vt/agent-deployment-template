@@ -1,21 +1,28 @@
 /**
  * Every per-client value lives here. A new deployment edits this file
  * (the runbook prompts for each value) and nothing else in src/.
+ *
+ * Every CHANGE-ME must be replaced before deploy — scripts/deploy.sh and
+ * scripts/slack-app-create.mjs refuse to run while any remain. Values
+ * without CHANGE-ME are sensible defaults; change them per client as needed.
  */
 export const templateConfig = {
   /** Client / deployment identity */
   client: {
-    name: 'VT PoC',
-    slug: 'vt-poc',
+    name: 'CHANGE-ME Client Name', // e.g. 'Acme Corp'
+    slug: 'CHANGE-ME-slug', // kebab-case; names the Mastra/Doppler/Vercel projects, e.g. 'acme'
   },
 
   /** The agent as end users meet it */
   agent: {
     id: 'assistant',
-    name: 'VT Research Assistant',
-    instructions: `You are a research assistant for VT PoC.
-You answer questions using live web search (Firecrawl tools) and cite the sources you used.
-For tasks that require running commands or producing files, use the workspace tools (workspace_init first, workspace_commit to persist results).`,
+    name: 'CHANGE-ME Agent Name', // e.g. 'Acme Research Assistant'
+    // What the agent is for, which tools to lean on, how to answer. Example:
+    //   You are a research assistant for Acme. You answer questions using live
+    //   web search (Firecrawl tools) and cite the sources you used. For tasks
+    //   that require running commands or producing files, use the workspace
+    //   tools (workspace_init first, workspace_commit to persist results).
+    instructions: `CHANGE-ME: the agent's role, tools to lean on, and answer style.`,
   },
 
   /**
@@ -32,18 +39,18 @@ For tasks that require running commands or producing files, use the workspace to
   /** The agent's persistent filesystem: a git repo cloned into the sandbox */
   workspace: {
     /** owner/repo on GitHub; created by the runbook */
-    repo: 'admin-vt/vt-poc-agent-workspace',
+    repo: 'CHANGE-ME-org/CHANGE-ME-slug-agent-workspace',
     branch: 'main',
   },
 
   /** Slack app identity + agent-view presentation (docs/slack-setup.md). */
   slack: {
     /** App display name, as the workspace sees it */
-    displayName: 'VT Research Assistant',
+    displayName: 'CHANGE-ME Agent Name',
     /** Bot handle (@mention name) */
-    handle: 'vt-research-assistant',
+    handle: 'CHANGE-ME-handle',
     /** Shown under the agent's name in the Slack agent view (≤300 chars) */
-    description: 'Research assistant for VT PoC — live web search with cited sources, plus a persistent git-backed workspace.',
+    description: 'CHANGE-ME: one or two sentences on what this agent does for the team.',
     /** Rotating "thinking" status lines shown while the agent works */
     loadingMessages: ['Working on it…', 'Searching…', 'Reading sources…'],
     /** Up to 4 clickable prompts pinned when someone opens an agent thread */
