@@ -14,6 +14,8 @@ command -v doppler mastra vercel gh   # all must exist
 doppler me && mastra auth whoami      # both authed (mastra via MASTRA_API_TOKEN)
 ```
 
+When anything fails, check `docs/verification-log.md` first — most failure modes you'll hit (sandbox races, endpoint timeouts, stale deploy bundles, vendor API path gotchas) are already characterized there with fixes.
+
 ## 1. Clone and configure
 
 ```bash
@@ -21,7 +23,7 @@ gh repo create <org>/<slug>-agent --private --template admin-vt/agent-deployment
 cd <slug>-agent
 ```
 
-Edit `template.config.ts`: client name/slug, agent id/name/instructions, model, toolkits, workspace repo `<org>/<slug>-agent-workspace`, Slack presentation (`slack.loadingMessages` / `slack.suggestedPrompts`).
+Edit `template.config.ts` and replace **every `CHANGE-ME`** (client name/slug, agent name/instructions, workspace repo `<org>/<slug>-agent-workspace`, Slack identity `slack.displayName`/`handle`/`description`), and set model/toolkits/Slack presentation as needed. `scripts/deploy.sh` and `scripts/slack-app-create.mjs` refuse to run while any `CHANGE-ME` remains.
 
 ## 2. Secrets (Doppler)
 
@@ -83,9 +85,20 @@ doppler secrets set COMPOSIO_API_KEY <api_key> --project <slug>-agent --config d
 
 Note: org endpoints live under `/api/v3.1/org/owner/*` with the `x-org-api-key` header — other paths shown in some docs (e.g. `/v3.1/org/projects`) 404.
 
-Composio auth configs for each toolkit, created inside this agent's project, and operator-credentialed toolkits connected for the agent account (`WORKOS_AGENT_USER_ID` as the Composio userId):
+Composio auth config for each toolkit, created inside this agent's project (`WORKOS_AGENT_USER_ID` is the Composio userId for all sessions). Two variants:
 
 ```bash
+# OAuth toolkits (clickup, gmail, notion, …) — Composio-managed OAuth; the
+# client authorizes later via the onboarding console's Connect Link:
+node --input-type=module -e "
+import { Composio } from '@composio/core';
+const c = new Composio({ apiKey: process.env.COMPOSIO_API_KEY });
+const existing = await c.authConfigs.list({ toolkit: '<toolkit>' });
+if (!existing.items?.length) console.log(await c.authConfigs.create('<toolkit>', { type: 'use_composio_managed_auth', name: '<slug>-<toolkit>' }));
+"
+
+# API-key toolkits with an operator credential (e.g. firecrawl) — the
+# onboarding /api/connections route connects them server-side:
 node --input-type=module -e "
 import { Composio } from '@composio/core';
 const c = new Composio({ apiKey: process.env.COMPOSIO_API_KEY });
@@ -101,6 +114,9 @@ npm install && npx tsc --noEmit
 set -a && source .env && set +a
 ./scripts/deploy.sh <slug>-agent   # builds .env.production (runtime var list lives in the script) + mastra deploy
 ```
+
+- **Always deploy through `scripts/deploy.sh`, never raw `mastra deploy`** — the CLI re-ships an existing `.mastra/output` bundle without rebuilding changed sources (verified); the script clears the cache first. A suspiciously fast deploy (<1 min) of changed code means a stale bundle shipped; a genuine build takes ~15 min.
+- The deploy log's `No storage configured — falling back to in-memory store` warning is **benign on the platform** — hosted storage is provisioned regardless (memory round-trip verified; see the log).
 
 **Commit and push as you go.** The deployment repo is the record: push the filled config before the first deploy, and push every code change the deployment runs — deployed state must never exist only in a local worktree (worktrees here are ephemeral).
 

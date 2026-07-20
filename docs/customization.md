@@ -11,9 +11,9 @@ Create `skills/<name>/SKILL.md` (agentskills.io format — frontmatter `name` + 
 The template ships with **no toolkits enabled** — every tool is a deliberate per-client grant, and content-ingesting tools (web search, email, docs) deserve particular thought: whatever they read, the agent reads, so they widen the prompt-injection surface for everyone on the allowlist.
 
 1. Add the slug to `templateConfig.composio.toolkits` and the `COMPOSIO_TOOLKITS` env var on the onboarding app (comma-separated).
-2. Ensure an auth config exists for the toolkit (`composio.authConfigs.create(...)` or the Composio dashboard).
-   - **OAuth toolkits** (Gmail, Slack, Notion, …): nothing else — users connect via the onboarding page's Connect Link flow.
-   - **API-key toolkits**: either users supply their key through a Connect Link, or the operator provides one server-side (see the Firecrawl branch in `onboarding/app/api/connections/route.ts`).
+2. Ensure an auth config exists for the toolkit *inside this deployment's Composio project* — runbook §3 has ready-to-run snippets for both variants.
+   - **OAuth toolkits** (ClickUp, Gmail, Notion, …): create with `{ type: 'use_composio_managed_auth' }`; the credential holder then authorizes via the onboarding page's Connect Link flow.
+   - **API-key toolkits**: create with `{ type: 'use_custom_auth', authScheme: 'API_KEY', credentials: {...} }`; either the holder supplies a key through a Connect Link, or the operator provides one server-side (see the Firecrawl branch in `onboarding/app/api/connections/route.ts`).
 3. Redeploy both apps. The agent picks up tools through its session automatically.
 
 ## Change the model

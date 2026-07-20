@@ -2,7 +2,7 @@
 
 Per-deployment Slack app (each agent is its own Slack identity), created programmatically via the App Manifest API, installed by the client with an "Add to Slack" button on the onboarding console. One ~10-second browser step remains on our side (activating distribution — Slack has no API for it).
 
-Doc-sourced flow (docs.slack.dev, 2026-07-20); empirical verification pending — see the verification log. The manual flow that was proven live on vt-poc is kept as the fallback appendix below.
+Verification status (2026-07-20): app creation via the script (config-token rotation, `apps.manifest.create`, credentials into Doppler) is **verified live** (ari-clickup). Still pending live proof: distribution activation → Add-to-Slack install → token landing in metadata — see the verification log. The manual flow proven on vt-poc is kept as the fallback appendix below.
 
 ## How the pieces fit
 
@@ -44,7 +44,7 @@ Open `https://api.slack.com/apps/<app-id>/distribute` → complete the checklist
 ./scripts/deploy.sh <slug>-agent
 ```
 
-Onboarding needs the OAuth pair (Vercel env): `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` → `vercel env add` + `vercel deploy --prod --yes`.
+Onboarding needs the OAuth pair (Vercel env): `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` → `vercel env add` (from `onboarding/`), then redeploy **from the repo root** (`vercel deploy --prod --yes` — Root Directory setup per runbook §5).
 
 ## 5. Client installs — the whole client experience
 

@@ -49,7 +49,8 @@ Permanently rejected: a self-serve builder agent; per-human end-user accounts; a
 - **Secrets:** never in git. Doppler is the source of truth; `./scripts/worktree-setup.sh` writes `.env` per worktree. This environment is headless — token auth only, no browser login flows (see `docs/dev-environment.md`).
 - **Build from vendor docs, not memory** — the stack moves weekly; use the stack-docs skill's sources before touching any vendor API.
 - **Pin versions exactly.** No `^`/`~` in package.json; upgrades are deliberate commits.
-- **Sandbox commands must be idempotent** — Composio's backend can dispatch a command twice concurrently (verified). See the workspace tools in `src/lib/workspace.ts` for the pattern.
+- **Sandbox commands must be idempotent** — Composio's backend can dispatch a command twice concurrently, and SDK-timed-out commands keep running server-side (both verified). Never put git state on the `/mnt/files` s3fs mount. See the workspace tools in `src/lib/workspace.ts` for the pattern.
+- **Deploy only via `scripts/deploy.sh`** — raw `mastra deploy` re-ships a stale `.mastra/output` bundle without rebuilding (verified); the script clears the cache first.
 - **Verify empirically, log it.** New vendor behavior findings go in `docs/verification-log.md`.
 
 ## Commands
