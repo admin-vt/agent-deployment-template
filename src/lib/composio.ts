@@ -1,34 +1,34 @@
 import { Composio } from '@composio/core';
 import { MastraProvider } from '@composio/mastra';
 import { templateConfig } from '../../template.config';
+import { agentUserId } from './identity';
 
 /**
- * Composio is the deployment's entire tool layer: per-user connected accounts,
- * catalog tool execution, and the Remote Sandbox. Sessions are user-scoped —
- * every tool call executes as that user's connected accounts.
+ * Composio is the deployment's entire tool layer. Everything is scoped to the
+ * single agent account (docs/identity-model.md): its connected accounts are
+ * the tools this agent — and only this agent — has been authorized to use.
+ * Each deployment runs in its own Composio project, so authorization can
+ * never bleed between agents.
  */
 export const composio = new Composio({ provider: new MastraProvider() });
 
 type ComposioSession = Awaited<ReturnType<typeof composio.create>>;
 
-const sessionCache = new Map<string, Promise<ComposioSession>>();
+let sessionPromise: Promise<ComposioSession> | null = null;
 
 /**
- * Session per user, bound to the deployment's toolkits and the user's ACTIVE
- * connected accounts, with the sandbox enabled. Verified behavior (V3): a
- * session created without explicit toolkit binding does not see the user's
- * connections, and stale non-ACTIVE accounts shadow ACTIVE ones.
+ * The agent account's session, bound to the deployment's toolkits and the
+ * account's ACTIVE connected accounts, sandbox enabled. Verified (V3): a
+ * session without explicit toolkit binding does not see connections, and
+ * stale non-ACTIVE accounts shadow ACTIVE ones.
  */
-export function getSession(userId: string): Promise<ComposioSession> {
-  let cached = sessionCache.get(userId);
-  if (!cached) {
-    cached = createSession(userId);
-    sessionCache.set(userId, cached);
-  }
-  return cached;
+export function getAgentSession(): Promise<ComposioSession> {
+  if (!sessionPromise) sessionPromise = createSession();
+  return sessionPromise;
 }
 
-async function createSession(userId: string): Promise<ComposioSession> {
+async function createSession(): Promise<ComposioSession> {
+  const userId = agentUserId();
   const toolkits: string[] = [...templateConfig.composio.toolkits];
   const conns = await composio.connectedAccounts.list({ userIds: [userId] });
 
@@ -48,12 +48,8 @@ async function createSession(userId: string): Promise<ComposioSession> {
   });
 }
 
-/** Tools for a user's session, formatted for Mastra by @composio/mastra. */
-export async function getUserTools(userId: string) {
-  const session = await getSession(userId);
+/** The agent's tools, formatted for Mastra by @composio/mastra. */
+export async function getAgentTools() {
+  const session = await getAgentSession();
   return session.tools();
-}
-
-export function defaultUserId(): string {
-  return templateConfig.composio.defaultUserId;
 }

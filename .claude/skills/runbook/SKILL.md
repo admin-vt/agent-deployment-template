@@ -5,7 +5,7 @@ description: Stand up a new client agent deployment from a fresh clone of this t
 
 # New deployment runbook
 
-Input needed from the operator before starting: **client name**, **slug** (kebab-case), **default model** (`openrouter/<provider>/<model>`), **toolkits** (Composio slugs), and which **GitHub org** owns the repos. Everything runs headless from this environment; read `stack-docs` for vendor doc sources if anything drifts.
+Input needed from the operator before starting: **client name**, **slug** (kebab-case), **client owner's email**, **initial Slack allowlist emails**, **default model** (`openrouter/<provider>/<model>`), **toolkits** (Composio slugs), and which **GitHub org** owns the repos. Everything runs headless from this environment; read `stack-docs` for vendor doc sources if anything drifts. Identity model: `docs/identity-model.md` — one agent account per deployment, humans on a Slack allowlist.
 
 ## 0. Preflight
 
@@ -52,7 +52,28 @@ doppler secrets set MASTRA_ORG_ID <org-id> MASTRA_PROJECT_ID <project-id> --proj
 ./scripts/worktree-setup.sh
 ```
 
-Composio auth configs for each toolkit (skip if the org already has one):
+**Agent account** (the deployment's single identity — all tool auth and the client's model key scope to it):
+
+```bash
+# One WorkOS user per agent; email = owner's address plus-tagged with the slug
+# (WorkOS emails are unique per environment; plus-addressing keeps resets in the owner's inbox)
+PW=$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)
+curl -s -X POST -H "Authorization: Bearer $WORKOS_API_KEY" -H "Content-Type: application/json" \
+  -d '{"email":"<owner>+<slug>@<domain>","password":"'$PW'","first_name":"<Client>","last_name":"Agent Account","email_verified":true}' \
+  https://api.workos.com/user_management/users
+# → record the user id, then:
+doppler secrets set WORKOS_AGENT_USER_ID <user-id> AGENT_ACCOUNT_EMAIL '<owner>+<slug>@<domain>' AGENT_ACCOUNT_PASSWORD "$PW" --project <slug>-agent --config dev --silent
+
+# Seed the Slack allowlist (default closed — nobody talks until listed)
+curl -s -X PUT -H "Authorization: Bearer $WORKOS_API_KEY" -H "Content-Type: application/json" \
+  -d '{"metadata":{"slackAllowlist":"[\"<owner-email>\",\"<other-initial-emails>\"]"}}' \
+  https://api.workos.com/user_management/users/<user-id>
+./scripts/worktree-setup.sh
+```
+
+**Composio project for this agent** — per-agent tool isolation (docs/identity-model.md). Project creation requires an org-level Composio API key (project keys are rejected by the org endpoints); create the project + its API key in the Composio dashboard (or via org key when available) and store the new project key as this deployment's `COMPOSIO_API_KEY` in Doppler.
+
+Composio auth configs for each toolkit, created inside this agent's project, and operator-credentialed toolkits connected for the agent account (`WORKOS_AGENT_USER_ID` as the Composio userId):
 
 ```bash
 node --input-type=module -e "
@@ -67,7 +88,7 @@ if (!existing.items?.length) console.log(await c.authConfigs.create('<toolkit>',
 
 ```bash
 npm install && npx tsc --noEmit
-grep -E "^(COMPOSIO_API_KEY|OPENROUTER_API_KEY|GITHUB_TOKEN|SLACK_BOT_TOKEN|SLACK_SIGNING_SECRET)=" .env > .env.production
+grep -E "^(COMPOSIO_API_KEY|OPENROUTER_API_KEY|GITHUB_TOKEN|SLACK_BOT_TOKEN|SLACK_SIGNING_SECRET|WORKOS_API_KEY|WORKOS_AGENT_USER_ID)=" .env > .env.production
 set -a && source .env && set +a
 mastra deploy --project <slug>-agent -y --env-file .env.production
 ```
@@ -110,4 +131,8 @@ curl -sI https://<slug>-onboarding.vercel.app | head -3   # expect redirect to l
 
 ## 7. Slack (when the client's workspace is ready)
 
-Follow `docs/slack-setup.md` — app manifest, install, credentials into Doppler, redeploy, verify. Everything after this point — the client's real skills, tools, instructions — is per-case design work, not runbook scope.
+Follow `docs/slack-setup.md` — app manifest (includes `users:read.email`, required by the allowlist guard), install, credentials into Doppler, redeploy, verify. Unlisted senders get a polite decline; listed senders get the full agent.
+
+## 8. Handoff
+
+Send the client owner: the onboarding link, the agent account credential (`AGENT_ACCOUNT_EMAIL` / `AGENT_ACCOUNT_PASSWORD` from Doppler), and the three-step instruction — sign in, authorize the listed tools + add your OpenRouter key, manage the allowlist. Everything after this point — the client's real skills, tools, instructions — is per-case design work, not runbook scope.

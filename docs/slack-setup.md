@@ -31,7 +31,7 @@ https://<project>.server.mastra.cloud/api/agents/<agent-id>/channels/slack/webho
     "scopes": {
       "bot": [
         "im:write", "app_mentions:read", "channels:history", "channels:read",
-        "chat:write", "users:read", "im:read", "im:history"
+        "chat:write", "users:read", "users:read.email", "im:read", "im:history"
       ]
     }
   },
@@ -73,4 +73,8 @@ mastra deploy --project <project> -y --env-file .env.production
 - Unsigned probe returns **401** (route live, signature enforcement working):
   `curl -X POST <webhook-url> -d '{"type":"url_verification","challenge":"x"}'` → 401
 - Slack app settings → Event Subscriptions → **Retry** if the URL shows unverified → turns green.
-- DM the bot (or @mention it in a channel). First real answer closes the loop.
+- DM the bot (or @mention it in a channel) **from an allowlisted email's account**. First real answer closes the loop.
+
+## Allowlist enforcement
+
+Every message is checked against the agent account's Slack allowlist (docs/identity-model.md): sender's Slack user id → email via `users.info` (this is why `users:read.email` is in the manifest) → match against the list. Unlisted senders get a one-line decline pointing to the account holder; missing-scope failures surface in-band with a distinct message. **If an app predates the scope addition, add `users:read.email` under OAuth & Permissions and reinstall the app — otherwise the guard declines everyone.**

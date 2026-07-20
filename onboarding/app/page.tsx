@@ -4,6 +4,11 @@ import { composio, TOOLKITS } from '../lib/composio';
 
 const workos = new WorkOS(process.env.WORKOS_API_KEY);
 
+/**
+ * The agent console. One account per agent (docs/identity-model.md): the
+ * signed-in user IS the agent account. Whoever holds the credential
+ * authorizes tools, sets the model key, and manages the Slack allowlist.
+ */
 export default async function Home() {
   const { user } = await withAuth({ ensureSignedIn: true });
 
@@ -16,43 +21,71 @@ export default async function Home() {
   );
 
   const fullUser = await workos.userManagement.getUser(user.id);
-  const hasModelKey = Boolean((fullUser.metadata as Record<string, string> | undefined)?.openrouterKeySet);
+  const metadata = (fullUser.metadata ?? {}) as Record<string, string>;
+  const hasModelKey = Boolean(metadata.openrouterKey);
+  let allowlist: string[] = [];
+  try {
+    const parsed = JSON.parse(metadata.slackAllowlist ?? '[]');
+    if (Array.isArray(parsed)) allowlist = parsed;
+  } catch {}
 
   return (
     <main>
-      <h1>Agent setup</h1>
+      <h1>Agent console</h1>
       <p>
-        Signed in as <strong>{user.email}</strong>{' '}
+        Agent account: <strong>{user.email}</strong>{' '}
         <form action={async () => { 'use server'; await signOut(); }} style={{ display: 'inline' }}>
           <button type="submit">Sign out</button>
         </form>
       </p>
 
-      <h2>1. Connect your tools</h2>
+      <h2>1. Authorized tools</h2>
+      <p>Tools this agent — and only this agent — may use. Connect service/shared accounts, not personal ones.</p>
       <ul>
         {TOOLKITS.map((toolkit) => (
           <li key={toolkit} style={{ marginBottom: '0.5rem' }}>
             <code>{toolkit}</code>:{' '}
             {connected.has(toolkit) ? (
-              <span>✅ connected</span>
+              <span>✅ authorized</span>
             ) : (
               <form action={`/api/connections?toolkit=${toolkit}`} method="post" style={{ display: 'inline' }}>
-                <button type="submit">Connect</button>
+                <button type="submit">Authorize</button>
               </form>
             )}
           </li>
         ))}
       </ul>
 
-      <h2>2. Model access (bring your own key)</h2>
+      <h2>2. Model key (bring your own key)</h2>
       <p>
-        Your agent bills model usage to <em>your</em> OpenRouter account. Paste an API key from{' '}
+        The agent bills model usage to your OpenRouter account. Get a key at{' '}
         <a href="https://openrouter.ai/keys">openrouter.ai/keys</a>.
       </p>
       <p>Status: {hasModelKey ? '✅ key on file' : '❌ no key yet'}</p>
       <form action="/api/openrouter-key" method="post">
         <input type="password" name="key" placeholder="sk-or-v1-..." style={{ width: '20rem' }} required />
         <button type="submit">Save</button>
+      </form>
+
+      <h2>3. Who can talk to the agent (Slack)</h2>
+      <p>Only these emails can use the agent in Slack. Everyone else gets a polite decline.</p>
+      <ul>
+        {allowlist.length === 0 && <li><em>Nobody yet — the agent is closed.</em></li>}
+        {allowlist.map((email) => (
+          <li key={email} style={{ marginBottom: '0.25rem' }}>
+            {email}{' '}
+            <form action="/api/allowlist" method="post" style={{ display: 'inline' }}>
+              <input type="hidden" name="action" value="remove" />
+              <input type="hidden" name="email" value={email} />
+              <button type="submit">Remove</button>
+            </form>
+          </li>
+        ))}
+      </ul>
+      <form action="/api/allowlist" method="post">
+        <input type="hidden" name="action" value="add" />
+        <input type="email" name="email" placeholder="teammate@company.com" style={{ width: '16rem' }} required />
+        <button type="submit">Add</button>
       </form>
     </main>
   );

@@ -15,7 +15,7 @@ export const templateConfig = {
     name: 'VT Research Assistant',
     instructions: `You are a research assistant for VT PoC.
 You answer questions using live web search (Firecrawl tools) and cite the sources you used.
-For tasks that require running commands or producing files, use the sandbox and persist results to the workspace repository.`,
+For tasks that require running commands or producing files, use the workspace tools (workspace_init first, workspace_commit to persist results).`,
   },
 
   /**
@@ -27,8 +27,6 @@ For tasks that require running commands or producing files, use the sandbox and 
   /** Composio toolkits enabled for this deployment (full catalog available) */
   composio: {
     toolkits: ['firecrawl'],
-    /** Fallback user id for tool sessions when no per-user identity is present */
-    defaultUserId: 'vt-poc-user',
   },
 
   /** The agent's persistent filesystem: a git repo cloned into the sandbox */

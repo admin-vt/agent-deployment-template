@@ -33,9 +33,9 @@ Onboarding surface (onboarding/, Next.js on Vercel)
 
 ## Key mechanics
 
-- **Per-user tool identity.** Composio sessions are created per user id with the deployment's toolkits and that user's ACTIVE connected accounts explicitly bound (`src/lib/composio.ts`). The onboarding surface uses the WorkOS user id as the Composio user id.
+- **Single agent identity.** One agent account per deployment (docs/identity-model.md): a single WorkOS user whose id is the Composio userId for all tool sessions (`src/lib/composio.ts`, `src/lib/identity.ts`). Its WorkOS metadata carries the Slack allowlist and the client's model key. Slack messages are guarded by channel handlers: sender email (via `users.info`) checked against the allowlist, default closed.
 - **Sandbox state model.** Sandboxes are ephemeral; `/mnt/files` persists per session only. Durable work goes through the workspace repo via the three idempotent tools (`workspace_init` / `workspace_run` / `workspace_commit`). Commands must tolerate re-execution — the backend occasionally double-dispatches (see verification log V4).
-- **BYOK.** End users store their own OpenRouter key via onboarding (WorkOS metadata). The deployment's `OPENROUTER_API_KEY` is a dev/operator key. Per-request key resolution from WorkOS metadata is the wiring point when a client goes live with real users.
+- **BYOK.** The client sets their OpenRouter key on the onboarding console; it lives in the agent account's metadata and the agent's model resolves it dynamically per request (`model: async () => ({ id, apiKey })`), with the deployment's `OPENROUTER_API_KEY` dev key as fallback.
 - **Config seam.** Every per-client value lives in `template.config.ts` (agent identity, model, toolkits, workspace repo, skills). The onboarding app mirrors the toolkit list via the `COMPOSIO_TOOLKITS` env var.
 
 ## Live PoC endpoints
