@@ -60,4 +60,4 @@ npm run typecheck  # both apps have this; onboarding/ is its own package
 ./scripts/deploy.sh <mastra-project>  # .env.production + mastra deploy (headless)
 ```
 
-Onboarding app (`onboarding/`) deploys to Vercel: `vercel deploy --prod --yes` from that directory.
+Onboarding app (`onboarding/`) deploys to Vercel **from the repo root** (project Root Directory = `onboarding`; the build imports repo-root files) — see runbook §5.

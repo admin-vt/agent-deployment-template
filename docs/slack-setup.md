@@ -66,7 +66,7 @@ Every message is checked against the agent account's Slack allowlist (docs/ident
 If the manifest API path is unavailable: create the app by hand at [api.slack.com/apps](https://api.slack.com/apps) → **From a manifest** → **JSON tab** (the dialog defaults to JSON; YAML pasted there fails with "can't translate a manifest with errors") → paste the manifest from `scripts/slack-app-create.mjs` with the placeholders filled → **Install to Workspace** (requires being a member; only works for a workspace you're in). Copy the **Signing Secret** (Basic Information) and **Bot User OAuth Token** (OAuth & Permissions), then:
 
 ```bash
-doppler secrets set SLACK_BOT_TOKEN '<xoxb-...>' SLACK_SIGNING_SECRET '<secret>' --project <doppler-project> --config dev --silent
+doppler secrets set SLACK_BOT_TOKEN='<xoxb-...>' SLACK_SIGNING_SECRET='<secret>' --project <doppler-project> --config dev --silent
 ```
 
 and deploy as in step 4. `SLACK_BOT_TOKEN` in env is the fallback the runtime uses when no token is in agent-account metadata. If URL verification fails at creation, ignore it — it passes once the agent is deployed. **If an app predates the `users:read.email` scope, add it under OAuth & Permissions and reinstall — otherwise the guard declines everyone.**

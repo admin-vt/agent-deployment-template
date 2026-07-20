@@ -13,11 +13,42 @@ import { getAgentSession } from './composio';
  * lock-tolerant.
  */
 const WORKSPACE_DIR = '/mnt/files/workspace';
+const INIT_LOCK = '/mnt/files/.ws-init-lock';
 
 function remoteUrl(): string {
   const token = process.env.GITHUB_TOKEN;
   const { repo } = templateConfig.workspace;
   return `https://x-access-token:${token}@github.com/${repo}.git`;
+}
+
+/**
+ * Shell preamble that guarantees a valid clone at WORKSPACE_DIR before any
+ * workspace work runs. Serialized under a mkdir-based mutex because the
+ * sandbox backend can dispatch a command twice concurrently (verified, V4;
+ * re-verified on this deployment): without the lock, one dispatch's
+ * `rev-parse || rm -rf` can destroy the repo the other just cloned — even
+ * after that dispatch already reported success. Locks older than 5 minutes
+ * are stolen (a duplicate killed mid-flight would otherwise wedge every
+ * later call); the clone lands via clone-to-temp + atomic mv as a second
+ * line of defense. Every tool runs this, so any dispatch on any sandbox
+ * self-heals before acting.
+ */
+function ensureRepo(): string {
+  const { branch } = templateConfig.workspace;
+  return (
+    `for i in $(seq 1 120); do ` +
+    `if mkdir ${INIT_LOCK} 2>/dev/null; then break; fi; ` +
+    `[ -n "$(find ${INIT_LOCK} -maxdepth 0 -mmin +5 2>/dev/null)" ] && rm -rf ${INIT_LOCK}; ` +
+    `sleep 1; done; ` +
+    `[ -d ${WORKSPACE_DIR}/.git ] && rm -f ${WORKSPACE_DIR}/.git/*.lock; ` +
+    `git -C ${WORKSPACE_DIR} rev-parse --verify HEAD >/dev/null 2>&1 || rm -rf ${WORKSPACE_DIR}; ` +
+    `if [ ! -d ${WORKSPACE_DIR}/.git ]; then ` +
+    `t=$(mktemp -d /mnt/files/.ws-clone.XXXXXX) && ` +
+    `git clone -q --branch ${branch} ${remoteUrl()} "$t/repo" && ` +
+    `{ mv -n -T "$t/repo" ${WORKSPACE_DIR} 2>/dev/null; rm -rf "$t"; }; fi; ` +
+    `git -C ${WORKSPACE_DIR} pull -q --ff-only 2>/dev/null; ` +
+    `rmdir ${INIT_LOCK} 2>/dev/null; `
+  );
 }
 
 async function bash(command: string) {
@@ -38,14 +69,11 @@ export const workspaceInit = createTool({
   inputSchema: z.object({}),
   outputSchema: z.object({ output: z.string() }),
   execute: async () => {
-    const { branch } = templateConfig.workspace;
-    // Self-healing: clear stale locks from interrupted duplicates; if the
-    // clone is corrupt (e.g. a race left an invalid HEAD), re-clone fresh.
     const result = await bash(
-      `[ -d ${WORKSPACE_DIR}/.git ] && rm -f ${WORKSPACE_DIR}/.git/*.lock; ` +
-        `git -C ${WORKSPACE_DIR} rev-parse --verify HEAD >/dev/null 2>&1 || rm -rf ${WORKSPACE_DIR}; ` +
-        `[ -d ${WORKSPACE_DIR}/.git ] || git clone -q --branch ${branch} ${remoteUrl()} ${WORKSPACE_DIR}; ` +
-        `cd ${WORKSPACE_DIR} && git pull -q --ff-only 2>/dev/null; echo WORKSPACE_READY && ls -1 | head -20`,
+      ensureRepo() +
+        `if git -C ${WORKSPACE_DIR} rev-parse --verify HEAD >/dev/null 2>&1; ` +
+        `then echo WORKSPACE_READY && ls -1 ${WORKSPACE_DIR} | head -20; ` +
+        `else echo WORKSPACE_INIT_FAILED; fi`,
     );
     return { output: result.stdout || result.stderr || String(result.error) };
   },
@@ -60,7 +88,7 @@ export const workspaceRun = createTool({
   }),
   outputSchema: z.object({ stdout: z.string(), stderr: z.string() }),
   execute: async ({ command }) => {
-    const result = await bash(`cd ${WORKSPACE_DIR} && (${command})`);
+    const result = await bash(ensureRepo() + `cd ${WORKSPACE_DIR} && (${command})`);
     return { stdout: result.stdout, stderr: result.stderr };
   },
 });
@@ -77,7 +105,8 @@ export const workspaceCommit = createTool({
     const { branch } = templateConfig.workspace;
     const safeMessage = message.replace(/"/g, "'");
     const result = await bash(
-      `cd ${WORKSPACE_DIR} && rm -f .git/index.lock .git/config.lock && ` +
+      ensureRepo() +
+        `cd ${WORKSPACE_DIR} && rm -f .git/index.lock .git/config.lock && ` +
         `git config user.email agent@${templateConfig.client.slug}.local && ` +
         `git config user.name "${templateConfig.agent.name}" && git add -A && ` +
         `(git diff --cached --quiet || git commit -q -m "${safeMessage}") && ` +

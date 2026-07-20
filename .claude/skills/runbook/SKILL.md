@@ -47,8 +47,8 @@ tmp=$(mktemp -d) && cd $tmp && git init -qb main && echo "# <client> agent works
 # Mastra platform project (REST; CLI needs MASTRA_ORG_ID/MASTRA_PROJECT_ID for token auth)
 curl -s -X POST -H "Authorization: Bearer $MASTRA_API_TOKEN" -H "Content-Type: application/json" \
   -d '{"name":"<slug>-agent"}' https://platform.mastra.ai/v1/server/projects
-# → record project.id and project.organizationId:
-doppler secrets set MASTRA_ORG_ID <org-id> MASTRA_PROJECT_ID <project-id> --project <slug>-agent --config dev --silent
+# → record project.id and project.organizationId (multi-set requires NAME=VALUE form):
+doppler secrets set MASTRA_ORG_ID=<org-id> MASTRA_PROJECT_ID=<project-id> --project <slug>-agent --config dev --silent
 ./scripts/worktree-setup.sh
 ```
 
@@ -61,8 +61,8 @@ PW=$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)
 curl -s -X POST -H "Authorization: Bearer $WORKOS_API_KEY" -H "Content-Type: application/json" \
   -d '{"email":"<owner>+<slug>@<domain>","password":"'$PW'","first_name":"<Agent Display Name>","last_name":"(<slug> agent account)","email_verified":true}' \
   https://api.workos.com/user_management/users
-# → record the user id, then:
-doppler secrets set WORKOS_AGENT_USER_ID <user-id> AGENT_ACCOUNT_EMAIL '<owner>+<slug>@<domain>' AGENT_ACCOUNT_PASSWORD "$PW" --project <slug>-agent --config dev --silent
+# → record the user id, then (multi-set requires NAME=VALUE form):
+doppler secrets set WORKOS_AGENT_USER_ID=<user-id> AGENT_ACCOUNT_EMAIL='<owner>+<slug>@<domain>' AGENT_ACCOUNT_PASSWORD="$PW" --project <slug>-agent --config dev --silent
 
 # Seed the Slack allowlist (default closed — nobody talks until listed)
 curl -s -X PUT -H "Authorization: Bearer $WORKOS_API_KEY" -H "Content-Type: application/json" \
@@ -102,7 +102,11 @@ set -a && source .env && set +a
 ./scripts/deploy.sh <slug>-agent   # builds .env.production (runtime var list lives in the script) + mastra deploy
 ```
 
+**Commit and push as you go.** The deployment repo is the record: push the filled config before the first deploy, and push every code change the deployment runs — deployed state must never exist only in a local worktree (worktrees here are ephemeral).
+
 ## 5. Deploy onboarding
+
+The build imports repo-root files (`slack-bot-scopes.json`), so the Vercel project's **Root Directory must be `onboarding` and the deploy must run from the repo root** (verified: a `vercel deploy` from inside `onboarding/` uploads only that directory and the build breaks). No CLI flag sets Root Directory (54.x) — set it once via API:
 
 ```bash
 cd onboarding && npm install
@@ -110,7 +114,17 @@ vercel link --yes --project <slug>-onboarding
 # env: WORKOS_API_KEY WORKOS_CLIENT_ID WORKOS_COOKIE_PASSWORD COMPOSIO_API_KEY FIRECRAWL_API_KEY
 #      COMPOSIO_TOOLKITS=<toolkits> NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://<slug>-onboarding.vercel.app/callback
 printf '%s' "<value>" | vercel env add <NAME> production   # per var
-vercel deploy --prod --yes
+cd ..
+
+pid=$(python3 -c "import json;print(json.load(open('onboarding/.vercel/project.json'))['projectId'])")
+team=$(python3 -c "import json;print(json.load(open('onboarding/.vercel/project.json'))['orgId'])")
+vtok=$(python3 -c "import json;print(json.load(open('$HOME/.vercel/auth.json'))['token'])")
+curl -s -X PATCH "https://api.vercel.com/v9/projects/$pid?teamId=$team" \
+  -H "Authorization: Bearer $vtok" -H "Content-Type: application/json" \
+  -d '{"rootDirectory":"onboarding"}' >/dev/null
+
+cp -r onboarding/.vercel .vercel
+vercel deploy --prod --yes   # from the repo root
 ```
 
 Register the callback as a WorkOS redirect URI (API, no dashboard needed):
@@ -124,17 +138,24 @@ curl -s -X POST -H "Authorization: Bearer $WORKOS_API_KEY" -H "Content-Type: app
 ## 6. Verify (scripted checks)
 
 ```bash
-# Agent answers (the workspace round-trip below also proves tool execution;
-# if the deployment enables a toolkit, exercise it too — e.g. firecrawl:
-# "Use FIRECRAWL_SEARCH to find todays top AI news, answer in one sentence.")
+# Timing (verified): the endpoints sit behind Cloudflare, which 524s at ~100s,
+# and any workspace tool call on a cold sandbox takes ~2 min (session + sandbox
+# + clone). Use /stream for anything tool-heavy; /generate only for short,
+# no-tool turns.
 curl -s -X POST https://<slug>-agent.server.mastra.cloud/api/agents/<agent-id>/generate \
   -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"user","content":"Reply with one sentence introducing yourself."}]}'
 
 # Memory round-trip: send a fact with {"memory":{"thread":"t1","resource":"u1"}}, recall it in a second request.
 
-# Workspace loop: ask the agent to workspace_init, write a file, workspace_commit —
+# Workspace loop (use /stream — cold sandbox exceeds the /generate timeout):
+# ask the agent to workspace_init, write a file, workspace_commit —
+curl -sN -X POST https://<slug>-agent.server.mastra.cloud/api/agents/<agent-id>/stream \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"workspace_init, write hello.txt containing hello, then workspace_commit."}]}' | tail -5
 # then confirm the commit: gh api repos/<org>/<slug>-agent-workspace/commits --jq '.[0].commit.message'
+# If a toolkit is enabled, exercise it too (e.g. firecrawl: "Use FIRECRAWL_SEARCH
+# to find todays top AI news, answer in one sentence.")
 
 # Onboarding serves and gates:
 curl -sI https://<slug>-onboarding.vercel.app | head -3   # expect redirect to login
