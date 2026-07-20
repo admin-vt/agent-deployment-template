@@ -5,7 +5,7 @@ Evidence for the template's verification checklist (V1–V5, from the original i
 > **vt-poc decommissioned (2026-07-20).** The PoC deployment this log's evidence came from was torn down so the template is purely a template: Mastra project, Vercel `vt-poc-onboarding`, Composio project `pr_JrvfUKawth5X`, and the WorkOS agent user deleted; Slack bot token revoked; vt-poc secrets removed from the template Doppler project. The *findings* below remain valid vendor knowledge — only the deployment is gone. The next runbook-produced deployment is the living reference.
 
 ## V1 — Mastra Hosted persistence — PASS
-- Deployed to Mastra platform (`vt-poc-agent.server.mastra.cloud`) with a `Memory` instance attached to the agent (`@mastra/memory`, `lastMessages: 20`). The platform provisions hosted storage automatically — no database in the repo, confirming D8.
+- Deployed to Mastra platform (`vt-poc-agent.server.mastra.cloud`) with a `Memory` instance attached to the agent (`@mastra/memory`, `lastMessages: 20`). The platform provisions hosted storage automatically — no database in the repo, confirming the storage decision (Mastra platform holds chat history + memory; the template ships storage-free).
 - Stored a fact in thread `v1-test-2` in one HTTP request; a **separate** request with the same `memory: { thread, resource }` params recalled it verbatim.
 - **Finding:** memory requires an explicit `Memory` instance on the agent — `threadId` params alone do nothing. Local `mastra dev` without configured storage falls back to non-durable in-memory storage (fine for dev).
 - **Finding:** the request param shape is `memory: { thread, resource }` (top-level `threadId`/`resourceId` are legacy).
