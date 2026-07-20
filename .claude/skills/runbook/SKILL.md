@@ -67,7 +67,7 @@ if (!existing.items?.length) console.log(await c.authConfigs.create('<toolkit>',
 
 ```bash
 npm install && npx tsc --noEmit
-grep -E "^(COMPOSIO_API_KEY|OPENROUTER_API_KEY|GITHUB_TOKEN)=" .env > .env.production
+grep -E "^(COMPOSIO_API_KEY|OPENROUTER_API_KEY|GITHUB_TOKEN|SLACK_BOT_TOKEN|SLACK_SIGNING_SECRET)=" .env > .env.production
 set -a && source .env && set +a
 mastra deploy --project <slug>-agent -y --env-file .env.production
 ```
