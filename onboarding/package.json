@@ -1,0 +1,24 @@
+{
+  "name": "onboarding",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@composio/core": "0.14.0",
+    "@workos-inc/authkit-nextjs": "4.2.0",
+    "@workos-inc/node": "10.8.0",
+    "next": "16.2.10",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.0.3",
+    "@types/react": "19.1.8",
+    "typescript": "5.8.3"
+  }
+}

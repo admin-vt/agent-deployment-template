@@ -1,0 +1,24 @@
+{
+  "name": "agent-deployment-template",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "mastra dev",
+    "build": "mastra build",
+    "deploy": "mastra deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@composio/core": "0.14.0",
+    "@composio/mastra": "0.10.2",
+    "@mastra/core": "1.51.0",
+    "@mastra/memory": "1.23.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.0.3",
+    "mastra": "1.19.0",
+    "typescript": "5.8.3"
+  }
+}

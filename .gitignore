@@ -11,3 +11,9 @@ node_modules/
 
 # Orca session artifacts
 .orca/
+
+# Build artifacts
+.mastra/
+*.tsbuildinfo
+src/mastra/public/dist/
+.next/
