@@ -48,3 +48,9 @@ Evidence for the Phase 2 checklist in `IMPLEMENTATION-PLAN.md`. All runs live ag
 - Dynamic BYOK model resolution active (`model: async () => ({id, apiKey})`) — client key from agent-account metadata when set, dev key fallback observed working.
 - Onboarding agent console live (tools / model key / allowlist editor), allowlist seeded.
 - Slack allowlist guard deployed. **Pending operator step:** existing Slack app needs `users:read.email` added + reinstall; until then senders get the in-band "couldn't verify identity" diagnostic.
+
+## Per-agent Composio project isolation — LIVE (2026-07-20)
+- vt-poc migrated to its own Composio project (`pr_JrvfUKawth5X`), provisioned programmatically: `POST /api/v3.1/org/owner/project/new` with `x-org-api-key` (Organization Access Token) and `should_create_api_key: true` returns the project + its API key in one call.
+- Firecrawl auth config + agent-account connected account recreated inside the new project; agent + onboarding redeployed on the project key; live search verified end-to-end.
+- The original shared project (`shawn_workspace_first_project`) no longer serves any deployment; its key is retained in Doppler as `COMPOSIO_WORKSPACE_PROJECT_KEY`.
+- **API path gotcha (verified):** org endpoints are `/api/v3.1/org/owner/*`; the `/v3.1/org/projects` path appearing in some docs 404s to the dashboard app.
