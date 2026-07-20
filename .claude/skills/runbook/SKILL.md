@@ -28,7 +28,7 @@ Edit `template.config.ts`: client name/slug, agent id/name/instructions, model, 
 ```bash
 doppler projects create <slug>-agent
 # copy shared operator credentials from the template project, then set per-client ones:
-for k in COMPOSIO_API_KEY OPENROUTER_API_KEY GITHUB_TOKEN FIRECRAWL_API_KEY WORKOS_API_KEY WORKOS_CLIENT_ID; do
+for k in MASTRA_API_TOKEN COMPOSIO_API_KEY OPENROUTER_API_KEY GITHUB_TOKEN FIRECRAWL_API_KEY WORKOS_API_KEY WORKOS_CLIENT_ID; do
   doppler secrets set $k "$(doppler secrets get $k --plain --project agent-deployment-template --config dev)" --project <slug>-agent --config dev --silent
 done
 doppler secrets set WORKOS_COOKIE_PASSWORD "$(openssl rand -base64 48 | tr -d '\n')" --project <slug>-agent --config dev --silent
