@@ -134,7 +134,12 @@ cd ..
 
 pid=$(python3 -c "import json;print(json.load(open('onboarding/.vercel/project.json'))['projectId'])")
 team=$(python3 -c "import json;print(json.load(open('onboarding/.vercel/project.json'))['orgId'])")
-vtok=$(python3 -c "import json;print(json.load(open('$HOME/.vercel/auth.json'))['token'])")
+vtok=$(python3 -c "
+import json, os
+for p in ('~/.local/share/com.vercel.cli/auth.json', '~/.vercel/auth.json'):
+    p = os.path.expanduser(p)
+    if os.path.exists(p): print(json.load(open(p))['token']); break
+")
 curl -s -X PATCH "https://api.vercel.com/v9/projects/$pid?teamId=$team" \
   -H "Authorization: Bearer $vtok" -H "Content-Type: application/json" \
   -d '{"rootDirectory":"onboarding"}' >/dev/null
