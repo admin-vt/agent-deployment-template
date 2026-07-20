@@ -35,4 +35,8 @@ RUNTIME_VARS=(
 pattern="$(IFS='|'; echo "${RUNTIME_VARS[*]}")"
 grep -E "^(${pattern})=" .env > .env.production
 
+# Stale-bundle guard (verified): mastra deploy re-ships an existing
+# .mastra/output bundle without rebuilding changed sources.
+rm -rf .mastra
+
 mastra deploy --project "$PROJECT" -y --env-file .env.production
