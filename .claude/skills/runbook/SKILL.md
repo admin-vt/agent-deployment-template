@@ -59,7 +59,7 @@ doppler secrets set MASTRA_ORG_ID <org-id> MASTRA_PROJECT_ID <project-id> --proj
 # (WorkOS emails are unique per environment; plus-addressing keeps resets in the owner's inbox)
 PW=$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)
 curl -s -X POST -H "Authorization: Bearer $WORKOS_API_KEY" -H "Content-Type: application/json" \
-  -d '{"email":"<owner>+<slug>@<domain>","password":"'$PW'","first_name":"<Client>","last_name":"Agent Account","email_verified":true}' \
+  -d '{"email":"<owner>+<slug>@<domain>","password":"'$PW'","first_name":"<Agent Display Name>","last_name":"(<slug> agent account)","email_verified":true}' \
   https://api.workos.com/user_management/users
 # → record the user id, then:
 doppler secrets set WORKOS_AGENT_USER_ID <user-id> AGENT_ACCOUNT_EMAIL '<owner>+<slug>@<domain>' AGENT_ACCOUNT_PASSWORD "$PW" --project <slug>-agent --config dev --silent
