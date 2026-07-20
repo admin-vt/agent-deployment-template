@@ -8,7 +8,7 @@ Viral Tilt's reusable template for deploying bespoke client agents. One deployme
 |---|---|
 | Product decisions, scope, what's permanently out | `REQUIREMENTS.md` |
 | Identity model (agent accounts, allowlists, org shape) | `docs/identity-model.md` |
-| Build phases and dev-environment/secrets workflow | `IMPLEMENTATION-PLAN.md` |
+| Dev-environment and secrets workflow | `docs/dev-environment.md` |
 | System architecture as built, live PoC endpoints | `docs/architecture.md` |
 | Per-client customization (skills, toolkits, models, surfaces) | `docs/customization.md` |
 | Slack app setup (manifest, credentials, verify) | `docs/slack-setup.md` |
@@ -20,7 +20,7 @@ Viral Tilt's reusable template for deploying bespoke client agents. One deployme
 
 ## Working rules
 
-- **Secrets:** never in git. Doppler is the source of truth; `./scripts/worktree-setup.sh` writes `.env` per worktree. This environment is headless — token auth only, no browser login flows (see `IMPLEMENTATION-PLAN.md` → Development environment).
+- **Secrets:** never in git. Doppler is the source of truth; `./scripts/worktree-setup.sh` writes `.env` per worktree. This environment is headless — token auth only, no browser login flows (see `docs/dev-environment.md`).
 - **Build from vendor docs, not memory** — the stack moves weekly; use the stack-docs skill's sources before touching any vendor API.
 - **Pin versions exactly.** No `^`/`~` in package.json; upgrades are deliberate commits.
 - **Sandbox commands must be idempotent** — Composio's backend can dispatch a command twice concurrently (verified). See the workspace tools in `src/lib/workspace.ts` for the pattern.

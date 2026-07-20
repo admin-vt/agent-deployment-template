@@ -20,7 +20,11 @@ Set `templateConfig.model` to any `openrouter/<provider>/<model>` string. Model 
 
 ## Add a chat surface (Slack etc.)
 
-Slack is wired into the template and activates when its credentials exist — full working steps (app manifest, install, credentials, verify) in `docs/slack-setup.md`. Other surfaces attach through the same Mastra channel-adapter layer (`channels.adapters` on the agent); see Mastra's channels docs via the stack-docs skill.
+Slack is wired into the template: each deployment gets its own Slack app, created programmatically by `scripts/slack-app-create.mjs`, and the client installs it themselves with the onboarding console's **Add to Slack** button — full flow in `docs/slack-setup.md`. The adapter activates once `SLACK_SIGNING_SECRET` exists; the bot token arrives at install time via agent-account metadata (no redeploy). Other surfaces attach through the same Mastra channel-adapter layer (`channels.adapters` on the agent); see Mastra's channels docs via the stack-docs skill.
+
+## Customize the Slack presentation
+
+`template.config.ts` → `slack` holds the agent-view presentation: `displayName`/`handle`/`description` (the app's Slack identity, read by `scripts/slack-app-create.mjs` at creation), `loadingMessages` (rotating "thinking" status lines), and `suggestedPrompts` (up to 4 clickable prompts pinned when a thread opens). Prompts and loading messages apply on redeploy; identity changes after the app exists are edited in the Slack app settings (or via `apps.manifest.update`).
 
 ## Give the agent a different workspace repo
 

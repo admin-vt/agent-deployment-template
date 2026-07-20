@@ -36,8 +36,14 @@ For tasks that require running commands or producing files, use the workspace to
     branch: 'main',
   },
 
-  /** Slack agent-view presentation (docs/slack-setup.md). All optional. */
+  /** Slack app identity + agent-view presentation (docs/slack-setup.md). */
   slack: {
+    /** App display name, as the workspace sees it */
+    displayName: 'VT Research Assistant',
+    /** Bot handle (@mention name) */
+    handle: 'vt-research-assistant',
+    /** Shown under the agent's name in the Slack agent view (≤300 chars) */
+    description: 'Research assistant for VT PoC — live web search with cited sources, plus a persistent git-backed workspace.',
     /** Rotating "thinking" status lines shown while the agent works */
     loadingMessages: ['Working on it…', 'Searching…', 'Reading sources…'],
     /** Up to 4 clickable prompts pinned when someone opens an agent thread */

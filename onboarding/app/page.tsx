@@ -1,6 +1,7 @@
 import { withAuth, signOut } from '@workos-inc/authkit-nextjs';
 import { WorkOS } from '@workos-inc/node';
 import { composio, TOOLKITS } from '../lib/composio';
+import { parseAllowlist } from '../lib/allowlist';
 
 const workos = new WorkOS(process.env.WORKOS_API_KEY);
 
@@ -31,11 +32,7 @@ export default async function Home({
   const hasModelKey = Boolean(metadata.openrouterKey);
   const slackTeam = metadata.slackTeamName || null;
   const slackAppReady = Boolean(process.env.SLACK_CLIENT_ID);
-  let allowlist: string[] = [];
-  try {
-    const parsed = JSON.parse(metadata.slackAllowlist ?? '[]');
-    if (Array.isArray(parsed)) allowlist = parsed;
-  } catch {}
+  const allowlist = parseAllowlist(metadata);
 
   return (
     <main>

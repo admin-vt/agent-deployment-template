@@ -5,7 +5,7 @@ description: Stand up a new client agent deployment from a fresh clone of this t
 
 # New deployment runbook
 
-Input needed from the operator before starting: **client name**, **slug** (kebab-case), **client owner's email**, **initial Slack allowlist emails**, **default model** (`openrouter/<provider>/<model>`), **toolkits** (Composio slugs), and which **GitHub org** owns the repos. Everything runs headless from this environment; read `stack-docs` for vendor doc sources if anything drifts. Identity model: `docs/identity-model.md` — one agent account per deployment, humans on a Slack allowlist.
+Input needed from the operator before starting: **client name**, **slug** (kebab-case), **client owner's email**, **initial Slack allowlist emails**, **Slack app identity** (display name, bot handle, ≤300-char agent description), **default model** (`openrouter/<provider>/<model>`), **toolkits** (Composio slugs), and which **GitHub org** owns the repos. Everything runs headless from this environment; read `stack-docs` for vendor doc sources if anything drifts. Identity model: `docs/identity-model.md` — one agent account per deployment, humans on a Slack allowlist.
 
 ## 0. Preflight
 
@@ -98,9 +98,8 @@ if (!existing.items?.length) console.log(await c.authConfigs.create('<toolkit>',
 
 ```bash
 npm install && npx tsc --noEmit
-grep -E "^(COMPOSIO_API_KEY|OPENROUTER_API_KEY|GITHUB_TOKEN|SLACK_BOT_TOKEN|SLACK_SIGNING_SECRET|WORKOS_API_KEY|WORKOS_AGENT_USER_ID)=" .env > .env.production
 set -a && source .env && set +a
-mastra deploy --project <slug>-agent -y --env-file .env.production
+./scripts/deploy.sh <slug>-agent   # builds .env.production (runtime var list lives in the script) + mastra deploy
 ```
 
 ## 5. Deploy onboarding
@@ -144,14 +143,13 @@ curl -sI https://<slug>-onboarding.vercel.app | head -3   # expect redirect to l
 Per `docs/slack-setup.md`: create this deployment's own Slack app programmatically, then the client installs it with the onboarding console's "Add to Slack" button — no manifest paste, no credential handback.
 
 ```bash
+# app identity + agent id read from template.config.ts; scopes from /slack-bot-scopes.json
 node scripts/slack-app-create.mjs \
-  --name "<Agent Display Name>" --handle <agent-handle> \
-  --description "<agent description, ≤300 chars>" \
-  --project <slug>-agent --agent-id <agent-id> \
+  --project <slug>-agent \
   --onboarding-url https://<slug>-onboarding.vercel.app \
   --doppler-project <slug>-agent
 # MANUAL (~10s, no API): https://api.slack.com/apps/<app-id>/distribute → Activate Public Distribution
-./scripts/worktree-setup.sh   # pick up SLACK_SIGNING_SECRET, then redeploy agent (step 4 grep includes it)
+./scripts/worktree-setup.sh && ./scripts/deploy.sh <slug>-agent   # pick up SLACK_SIGNING_SECRET, redeploy
 # onboarding Vercel env: add SLACK_CLIENT_ID + SLACK_CLIENT_SECRET, redeploy (step 5)
 ```
 

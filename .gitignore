@@ -12,6 +12,9 @@ node_modules/
 # Orca session artifacts
 .orca/
 
+# Per-deployment Mastra CLI binding — never template state
+.mastra-project.json
+
 # Build artifacts
 .mastra/
 *.tsbuildinfo

@@ -12,11 +12,13 @@
  * access token — rotation invalidates the old refresh token, and losing the
  * new one means regenerating in the Slack UI.
  *
- * Usage (from a deployment clone, .env populated):
+ * App identity (name / handle / description) and the agent id come from
+ * template.config.ts (the config seam); bot scopes from /slack-bot-scopes.json
+ * (shared with the onboarding install route). CLI flags override any of them.
+ *
+ * Usage (from a deployment clone, .env populated, template.config.ts filled):
  *   node scripts/slack-app-create.mjs \
- *     --name "Acme Research Agent" --handle acme-agent \
- *     --description "Research assistant for Acme — web search with cited sources." \
- *     --project acme-agent --agent-id assistant \
+ *     --project acme-agent \
  *     --onboarding-url https://acme-onboarding.vercel.app \
  *     --doppler-project acme-agent
  *
@@ -25,6 +27,11 @@
  * Until then the "Add to Slack" button only works for the app's home workspace.
  */
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+
+// Node 24 type-strips template.config.ts on import — no build step needed.
+const { templateConfig } = await import(new URL('../template.config.ts', import.meta.url));
+const botScopes = JSON.parse(readFileSync(new URL('../slack-bot-scopes.json', import.meta.url), 'utf8'));
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((pairs, tok, i, all) => {
@@ -32,6 +39,11 @@ const args = Object.fromEntries(
     return pairs;
   }, []),
 );
+
+args.name ??= templateConfig.slack.displayName;
+args.handle ??= templateConfig.slack.handle;
+args.description ??= templateConfig.slack.description;
+args['agent-id'] ??= templateConfig.agent.id;
 
 const required = ['name', 'handle', 'project', 'agent-id', 'onboarding-url', 'doppler-project'];
 const missing = required.filter((k) => !args[k]);
@@ -88,9 +100,6 @@ console.log('Config token rotated; new refresh token persisted to Doppler.');
 const webhookUrl = `https://${args.project}.server.mastra.cloud/api/agents/${args['agent-id']}/channels/slack/webhook`;
 const redirectUrl = `${args['onboarding-url'].replace(/\/$/, '')}/api/slack/callback`;
 
-// Keep bot scopes in sync with SLACK_BOT_SCOPES in onboarding/lib/slack.ts —
-// the OAuth install request must ask for exactly what the manifest declares.
-//
 // agent_view enables Slack's Agent messaging experience (status/loading
 // indicators, suggested prompts, native streaming, thread titles) — new apps
 // can only use agent_view; assistant_view is deprecated. It requires the
@@ -112,13 +121,7 @@ const manifest = {
   },
   oauth_config: {
     redirect_urls: [redirectUrl],
-    scopes: {
-      bot: [
-        'im:write', 'app_mentions:read', 'channels:history', 'channels:read',
-        'chat:write', 'users:read', 'users:read.email', 'im:read', 'im:history',
-        'assistant:write',
-      ],
-    },
+    scopes: { bot: botScopes },
   },
   settings: {
     event_subscriptions: {

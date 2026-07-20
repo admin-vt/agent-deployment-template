@@ -1,6 +1,6 @@
 # Verification Log
 
-Evidence for the Phase 2 checklist in `IMPLEMENTATION-PLAN.md`. All runs live against real services, 2026-07-19.
+Evidence for the template's verification checklist (V1–V5, from the original implementation plan, since retired). All runs live against real services, 2026-07-19.
 
 ## V1 — Mastra Hosted persistence — PASS
 - Deployed to Mastra platform (`vt-poc-agent.server.mastra.cloud`) with a `Memory` instance attached to the agent (`@mastra/memory`, `lastMessages: 20`). The platform provisions hosted storage automatically — no database in the repo, confirming D8.
@@ -12,7 +12,7 @@ Evidence for the Phase 2 checklist in `IMPLEMENTATION-PLAN.md`. All runs live ag
 - Live end-to-end on vt-poc: Slack app created from manifest, installed to the VT workspace, credentials deployed, and the agent **answering real messages in Slack**. Full recipe in `docs/slack-setup.md`.
 - Webhook signature enforcement confirmed: unsigned POST to the webhook route returns 401; signed Slack traffic passes.
 - Adapter is conditional on env (`SLACK_BOT_TOKEN`/`SLACK_SIGNING_SECRET`), so Slack-less deployments are unaffected.
-- Per-user identity fields exposed to the agent (for BYOK key mapping): still to characterize when wiring per-user keys.
+- ~~Per-user identity fields exposed to the agent (for BYOK key mapping): still to characterize when wiring per-user keys.~~ Superseded 2026-07-20 by the identity model (docs/identity-model.md): no per-user keys — one client key on the agent account.
 
 ## V3 — Composio Firecrawl execution — PASS
 - Auth config created programmatically: `composio.authConfigs.create('firecrawl', { type: 'use_custom_auth', authScheme: 'API_KEY', credentials: { api_key } })`.

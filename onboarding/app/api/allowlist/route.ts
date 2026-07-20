@@ -1,6 +1,7 @@
 import { withAuth } from '@workos-inc/authkit-nextjs';
 import { WorkOS } from '@workos-inc/node';
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAllowlist } from '../../../lib/allowlist';
 
 const workos = new WorkOS(process.env.WORKOS_API_KEY);
 
@@ -20,13 +21,7 @@ export async function POST(req: NextRequest) {
   }
 
   const current = await workos.userManagement.getUser(user.id);
-  let list: string[] = [];
-  try {
-    const parsed = JSON.parse((current.metadata as Record<string, string>)?.slackAllowlist ?? '[]');
-    if (Array.isArray(parsed)) list = parsed;
-  } catch {
-    list = [];
-  }
+  const list = parseAllowlist(current.metadata as Record<string, string>);
 
   const next =
     action === 'remove'
