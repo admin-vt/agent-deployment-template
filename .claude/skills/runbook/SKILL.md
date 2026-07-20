@@ -110,4 +110,4 @@ curl -sI https://<slug>-onboarding.vercel.app | head -3   # expect redirect to l
 
 ## 7. Slack (when the client's workspace is ready)
 
-Follow `docs/customization.md` → "Add a chat surface". Everything after this point — the client's real skills, tools, instructions — is per-case design work, not runbook scope.
+Follow `docs/slack-setup.md` — app manifest, install, credentials into Doppler, redeploy, verify. Everything after this point — the client's real skills, tools, instructions — is per-case design work, not runbook scope.

@@ -20,15 +20,7 @@ Set `templateConfig.model` to any `openrouter/<provider>/<model>` string. Model 
 
 ## Add a chat surface (Slack etc.)
 
-Mastra channel adapters attach directly to the agent, e.g. Slack:
-
-```ts
-import { createSlackAdapter } from '@chat-adapter/slack';
-// in the Agent definition:
-channels: { adapters: { slack: createSlackAdapter() } }
-```
-
-Webhook route: `/api/agents/<agent-id>/channels/slack/webhook`; env: `SLACK_SIGNING_SECRET`, `SLACK_BOT_TOKEN`; create the Slack app from Mastra's manifest (mastra.ai/docs/capabilities/channels/slack). Other surfaces use the same adapter layer.
+Slack is wired into the template and activates when its credentials exist — full working steps (app manifest, install, credentials, verify) in `docs/slack-setup.md`. Other surfaces attach through the same Mastra channel-adapter layer (`channels.adapters` on the agent); see Mastra's channels docs via the stack-docs skill.
 
 ## Give the agent a different workspace repo
 

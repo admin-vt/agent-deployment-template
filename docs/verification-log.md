@@ -8,11 +8,11 @@ Evidence for the Phase 2 checklist in `IMPLEMENTATION-PLAN.md`. All runs live ag
 - **Finding:** memory requires an explicit `Memory` instance on the agent — `threadId` params alone do nothing. Local `mastra dev` without configured storage falls back to non-durable in-memory storage (fine for dev).
 - **Finding:** the request param shape is `memory: { thread, resource }` (top-level `threadId`/`resourceId` are legacy).
 
-## V2 — Mastra native Slack integration
-**Status: doc-verified; install deferred** (Slack workspace to be provided later).
-- Mastra ships a native Slack channel: `@chat-adapter/slack`, wired via `channels: { adapters: { slack: createSlackAdapter() } }` on the agent, webhook route `/api/agents/<agent-id>/channels/slack/webhook`, env `SLACK_SIGNING_SECRET` + `SLACK_BOT_TOKEN`. Source: mastra.ai/docs/capabilities/channels/slack.
-- Additional channel adapters exist under the same layer (see Mastra channels overview).
-- Per-user identity fields exposed to the agent: not documented; determine at install time.
+## V2 — Mastra native Slack integration — PASS (2026-07-20)
+- Live end-to-end on vt-poc: Slack app created from manifest, installed to the VT workspace, credentials deployed, and the agent **answering real messages in Slack**. Full recipe in `docs/slack-setup.md`.
+- Webhook signature enforcement confirmed: unsigned POST to the webhook route returns 401; signed Slack traffic passes.
+- Adapter is conditional on env (`SLACK_BOT_TOKEN`/`SLACK_SIGNING_SECRET`), so Slack-less deployments are unaffected.
+- Per-user identity fields exposed to the agent (for BYOK key mapping): still to characterize when wiring per-user keys.
 
 ## V3 — Composio Firecrawl execution — PASS
 - Auth config created programmatically: `composio.authConfigs.create('firecrawl', { type: 'use_custom_auth', authScheme: 'API_KEY', credentials: { api_key } })`.
