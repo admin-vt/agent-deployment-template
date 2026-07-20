@@ -1,5 +1,6 @@
 import { Agent } from '@mastra/core/agent';
 import { Memory } from '@mastra/memory';
+import { createSlackAdapter } from '@chat-adapter/slack';
 import { templateConfig } from '../../../template.config';
 import { defaultUserId, getUserTools } from '../../lib/composio';
 import { workspaceTools } from '../../lib/workspace';
@@ -22,6 +23,11 @@ export const assistant = new Agent({
   memory: new Memory({
     options: { lastMessages: 20 },
   }),
+  // Slack attaches only when its credentials exist, so deployments without
+  // Slack (or before app install) run unchanged.
+  ...(process.env.SLACK_BOT_TOKEN && process.env.SLACK_SIGNING_SECRET
+    ? { channels: { adapters: { slack: createSlackAdapter() } } }
+    : {}),
   skills: [...templateConfig.skills],
   tools: async ({ requestContext }) => {
     const userId =

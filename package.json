@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@chat-adapter/slack": "4.34.0",
     "@composio/core": "0.14.0",
     "@composio/mastra": "0.10.2",
     "@mastra/core": "1.51.0",
