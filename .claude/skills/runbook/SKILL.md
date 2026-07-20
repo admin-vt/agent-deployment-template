@@ -71,7 +71,17 @@ curl -s -X PUT -H "Authorization: Bearer $WORKOS_API_KEY" -H "Content-Type: appl
 ./scripts/worktree-setup.sh
 ```
 
-**Composio project for this agent** — per-agent tool isolation (docs/identity-model.md). Project creation requires an org-level Composio API key (project keys are rejected by the org endpoints); create the project + its API key in the Composio dashboard (or via org key when available) and store the new project key as this deployment's `COMPOSIO_API_KEY` in Doppler.
+**Composio project for this agent** — per-agent tool isolation (docs/identity-model.md), scripted via the org access token (`COMPOSIO_ORG_API_KEY` in the template Doppler project; from dashboard → Organization Settings → Organization Access Tokens):
+
+```bash
+curl -s -X POST -H "x-org-api-key: $COMPOSIO_ORG_API_KEY" -H "Content-Type: application/json" \
+  -d '{"name":"<slug>-agent","should_create_api_key":true}' \
+  https://backend.composio.dev/api/v3.1/org/owner/project/new
+# → returns {id, name, api_key}; store api_key as this deployment's COMPOSIO_API_KEY:
+doppler secrets set COMPOSIO_API_KEY <api_key> --project <slug>-agent --config dev --silent
+```
+
+Note: org endpoints live under `/api/v3.1/org/owner/*` with the `x-org-api-key` header — other paths shown in some docs (e.g. `/v3.1/org/projects`) 404.
 
 Composio auth configs for each toolkit, created inside this agent's project, and operator-credentialed toolkits connected for the agent account (`WORKOS_AGENT_USER_ID` as the Composio userId):
 
