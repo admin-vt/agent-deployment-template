@@ -21,7 +21,7 @@ gh repo create <org>/<slug>-agent --private --template admin-vt/agent-deployment
 cd <slug>-agent
 ```
 
-Edit `template.config.ts`: client name/slug, agent id/name/instructions, model, toolkits, workspace repo `<org>/<slug>-agent-workspace`.
+Edit `template.config.ts`: client name/slug, agent id/name/instructions, model, toolkits, workspace repo `<org>/<slug>-agent-workspace`, Slack presentation (`slack.loadingMessages` / `slack.suggestedPrompts`).
 
 ## 2. Secrets (Doppler)
 
@@ -139,10 +139,24 @@ curl -s -X POST https://<slug>-agent.server.mastra.cloud/api/agents/<agent-id>/g
 curl -sI https://<slug>-onboarding.vercel.app | head -3   # expect redirect to login
 ```
 
-## 7. Slack (when the client's workspace is ready)
+## 7. Slack app (before handoff — the client installs it themselves)
 
-Follow `docs/slack-setup.md` — app manifest (includes `users:read.email`, required by the allowlist guard), install, credentials into Doppler, redeploy, verify. Unlisted senders get a polite decline; listed senders get the full agent.
+Per `docs/slack-setup.md`: create this deployment's own Slack app programmatically, then the client installs it with the onboarding console's "Add to Slack" button — no manifest paste, no credential handback.
+
+```bash
+node scripts/slack-app-create.mjs \
+  --name "<Agent Display Name>" --handle <agent-handle> \
+  --description "<agent description, ≤300 chars>" \
+  --project <slug>-agent --agent-id <agent-id> \
+  --onboarding-url https://<slug>-onboarding.vercel.app \
+  --doppler-project <slug>-agent
+# MANUAL (~10s, no API): https://api.slack.com/apps/<app-id>/distribute → Activate Public Distribution
+./scripts/worktree-setup.sh   # pick up SLACK_SIGNING_SECRET, then redeploy agent (step 4 grep includes it)
+# onboarding Vercel env: add SLACK_CLIENT_ID + SLACK_CLIENT_SECRET, redeploy (step 5)
+```
+
+Needs `SLACK_CONFIG_REFRESH_TOKEN` in the template Doppler project (one-time operator setup — see slack-setup.md §1). The bot token is NOT provisioned here: it lands in agent-account metadata when the client clicks Add to Slack.
 
 ## 8. Handoff
 
-Send the client owner: the onboarding link, the agent account credential (`AGENT_ACCOUNT_EMAIL` / `AGENT_ACCOUNT_PASSWORD` from Doppler), and the three-step instruction — sign in, authorize the listed tools + add your OpenRouter key, manage the allowlist. Everything after this point — the client's real skills, tools, instructions — is per-case design work, not runbook scope.
+Send the client owner: the onboarding link, the agent account credential (`AGENT_ACCOUNT_EMAIL` / `AGENT_ACCOUNT_PASSWORD` from Doppler), and the four-step instruction — sign in, authorize the listed tools, add your OpenRouter key, click **Add to Slack**, manage the allowlist. Everything after this point — the client's real skills, tools, instructions — is per-case design work, not runbook scope.

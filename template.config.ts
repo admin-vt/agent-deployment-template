@@ -36,6 +36,17 @@ For tasks that require running commands or producing files, use the workspace to
     branch: 'main',
   },
 
+  /** Slack agent-view presentation (docs/slack-setup.md). All optional. */
+  slack: {
+    /** Rotating "thinking" status lines shown while the agent works */
+    loadingMessages: ['Working on it…', 'Searching…', 'Reading sources…'],
+    /** Up to 4 clickable prompts pinned when someone opens an agent thread */
+    suggestedPrompts: [
+      { title: 'Research a topic', message: 'Research this topic and cite your sources: ' },
+      { title: "What's in the workspace?", message: 'List what is currently in your workspace repo.' },
+    ],
+  },
+
   /** Skills shipped with this deployment (standard SKILL.md directories) */
   skills: ['./skills/web-research'],
 } as const;

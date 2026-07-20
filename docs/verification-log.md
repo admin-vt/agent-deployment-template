@@ -49,6 +49,18 @@ Evidence for the Phase 2 checklist in `IMPLEMENTATION-PLAN.md`. All runs live ag
 - Onboarding agent console live (tools / model key / allowlist editor), allowlist seeded.
 - Slack allowlist guard deployed. **Pending operator step:** existing Slack app needs `users:read.email` added + reinstall; until then senders get the in-band "couldn't verify identity" diagnostic.
 
+## Per-deployment Slack app + "Add to Slack" install — BUILT, doc-sourced, EMPIRICAL VERIFICATION PENDING (2026-07-20)
+
+Implemented: `scripts/slack-app-create.mjs` (App Manifest API creation), onboarding `/api/slack/install` + `/api/slack/callback` (OAuth v2 install, token → agent-account metadata), dynamic bot-token resolution in the agent (`getSlackBotToken`; adapter attaches on `SLACK_SIGNING_SECRET` alone, `botToken` as async resolver — `@chat-adapter/slack` 4.34.0 invokes it per call, and its startup `auth.test` failure is caught, warn-only; verified by reading the shipped dist).
+
+Doc-sourced claims to verify live (docs.slack.dev, fetched 2026-07-20):
+- Unlisted distributed apps install into foreign workspaces with **no Marketplace review** — just the distribution checklist + "Activate Public Distribution" (UI-only; no API found). One OAuth doc page claimed Marketplace listing is required for public distribution; the dedicated distribution page contradicts it and is presumed authoritative.
+- `apps.manifest.create` (config-token auth) returns `client_id`/`client_secret`/`signing_secret` in the response; config tokens expire in 12h, refresh via `tooling.tokens.rotate`, refresh tokens single-use.
+- `oauth.v2.access` returns the workspace bot token + `team.id` on install.
+- Agent messaging experience: manifest `features.agent_view.agent_description` (new apps cannot use the deprecated `assistant_view`), scope `assistant:write`, events `app_home_opened` + `app_context_changed` + `message.im`. Unlocks `assistant.threads.setStatus` (thinking indicator w/ rotating loading messages), `setSuggestedPrompts`, `setTitle`, and `chat.startStream` streaming. Adapter (`@chat-adapter/slack` 4.34.0) supports it via `agentView: true`; wired with loadingMessages + suggestedPrompts from `template.config.ts` → `slack`.
+
+Verification plan: run the script against a throwaway app, activate distribution, install into a second workspace we control, confirm the token lands in metadata and the agent answers. Not yet run.
+
 ## Per-agent Composio project isolation — LIVE (2026-07-20)
 - vt-poc migrated to its own Composio project (`pr_JrvfUKawth5X`), provisioned programmatically: `POST /api/v3.1/org/owner/project/new` with `x-org-api-key` (Organization Access Token) and `should_create_api_key: true` returns the project + its API key in one call.
 - Firecrawl auth config + agent-account connected account recreated inside the new project; agent + onboarding redeployed on the project key; live search verified end-to-end.

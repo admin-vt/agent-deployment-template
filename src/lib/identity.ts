@@ -47,6 +47,19 @@ export async function getModelApiKey(): Promise<string> {
   return metadata.openrouterKey || process.env.OPENROUTER_API_KEY || '';
 }
 
+/**
+ * The Slack bot token: written to agent-account metadata by the onboarding
+ * app's "Add to Slack" OAuth callback; SLACK_BOT_TOKEN env as fallback for
+ * manually-installed apps. Throws when the app hasn't been installed yet —
+ * callers only run in response to Slack traffic, which requires an install.
+ */
+export async function getSlackBotToken(): Promise<string> {
+  const { metadata } = await getAgentAccount();
+  const token = metadata.slackBotToken || process.env.SLACK_BOT_TOKEN;
+  if (!token) throw new Error('No Slack bot token: app not installed to a workspace yet');
+  return token;
+}
+
 const emailCache = new Map<string, string | null>();
 
 /**
@@ -56,7 +69,7 @@ const emailCache = new Map<string, string | null>();
 export async function resolveSlackEmail(slackUserId: string): Promise<string | null> {
   if (emailCache.has(slackUserId)) return emailCache.get(slackUserId) ?? null;
   const res = await fetch(`https://slack.com/api/users.info?user=${encodeURIComponent(slackUserId)}`, {
-    headers: { Authorization: `Bearer ${process.env.SLACK_BOT_TOKEN}` },
+    headers: { Authorization: `Bearer ${await getSlackBotToken()}` },
   });
   const data = (await res.json()) as { ok: boolean; user?: { profile?: { email?: string } } };
   const email = data.ok ? (data.user?.profile?.email ?? null) : null;

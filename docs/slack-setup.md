@@ -1,80 +1,75 @@
 # Slack setup
 
-Proven flow (vt-poc, 2026-07-20). ~10 minutes; only the app-creation steps need a browser.
+Per-deployment Slack app (each agent is its own Slack identity), created programmatically via the App Manifest API, installed by the client with an "Add to Slack" button on the onboarding console. One ~10-second browser step remains on our side (activating distribution — Slack has no API for it).
 
-## 1. Code side (already in the template)
+Doc-sourced flow (docs.slack.dev, 2026-07-20); empirical verification pending — see the verification log. The manual flow that was proven live on vt-poc is kept as the fallback appendix below.
 
-The agent wires `createSlackAdapter()` from `@chat-adapter/slack` into `channels.adapters` — see `src/mastra/agents/assistant.ts`. The adapter activates only when `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` exist, so deployments without Slack run unchanged. The webhook route Mastra registers is:
+## How the pieces fit
 
-```
-https://<project>.server.mastra.cloud/api/agents/<agent-id>/channels/slack/webhook
-```
+- **App credentials** (client id/secret, signing secret) are created with the app by `scripts/slack-app-create.mjs` and live in Doppler. The agent deploys with only `SLACK_SIGNING_SECRET`; that's what makes the adapter attach (`src/mastra/agents/assistant.ts`).
+- **The bot token** is not a deploy-time secret. When the client clicks **Add to Slack** on the onboarding console, the OAuth callback (`onboarding/app/api/slack/callback/route.ts`) exchanges the code at `oauth.v2.access` and writes the `xoxb-` token into the agent account's WorkOS metadata (`slackBotToken`), alongside `slackTeamId`/`slackTeamName`/`slackBotUserId`. The agent resolves it per call (`getSlackBotToken` in `src/lib/identity.ts`) — installs and reinstalls need **no redeploy**.
+- Pre-install, the adapter's startup `auth.test` fails soft (a warning) and no events arrive anyway.
+- Bot scopes are declared in two places that must match: the manifest in `scripts/slack-app-create.mjs` and `SLACK_BOT_SCOPES` in `onboarding/lib/slack.ts`.
+- **Agent messaging experience** (`features.agent_view` in the manifest — the only mode available to new apps; `assistant_view` is deprecated): unlocks the thinking/status indicator with rotating loading messages, suggested prompts pinned on thread open, native token streaming (`chat.startStream`), and thread titles. Requires the `assistant:write` scope plus the `app_home_opened` and `app_context_changed` events; the adapter side is `agentView: true` in `assistant.ts`. Per-client presentation (loading messages, suggested prompts, the ≤300-char agent description) lives in `template.config.ts` → `slack` and the script's `--description` arg.
 
-## 2. Create the Slack app (browser, operator)
+## 1. One-time operator prerequisite
 
-[api.slack.com/apps](https://api.slack.com/apps) → **Create an app** → **From a manifest** → pick the target workspace → paste the manifest below.
-
-**Gotcha:** the dialog has YAML/JSON tabs and defaults to JSON — pasting YAML there fails with "can't translate a manifest with errors." Use the JSON below on the JSON tab.
-
-```json
-{
-  "display_information": { "name": "<Agent Display Name>" },
-  "features": {
-    "app_home": {
-      "home_tab_enabled": false,
-      "messages_tab_enabled": true,
-      "messages_tab_read_only_enabled": false
-    },
-    "bot_user": { "display_name": "<agent-handle>", "always_online": true }
-  },
-  "oauth_config": {
-    "scopes": {
-      "bot": [
-        "im:write", "app_mentions:read", "channels:history", "channels:read",
-        "chat:write", "users:read", "users:read.email", "im:read", "im:history"
-      ]
-    }
-  },
-  "settings": {
-    "event_subscriptions": {
-      "request_url": "https://<project>.server.mastra.cloud/api/agents/<agent-id>/channels/slack/webhook",
-      "bot_events": ["app_mention", "message.channels", "message.im"]
-    },
-    "interactivity": {
-      "is_enabled": true,
-      "request_url": "https://<project>.server.mastra.cloud/api/agents/<agent-id>/channels/slack/webhook"
-    },
-    "org_deploy_enabled": false,
-    "socket_mode_enabled": false,
-    "token_rotation_enabled": false
-  }
-}
-```
-
-If URL verification fails at creation, ignore it — it passes after step 4.
-
-## 3. Install and collect credentials
-
-**Install App** → **Install to Workspace** → approve. Then copy:
-- **Signing Secret** — Basic Information → App Credentials
-- **Bot User OAuth Token** (`xoxb-…`) — OAuth & Permissions
-
-## 4. Deploy with credentials
+A Slack **app configuration token** for the workspace that will own the apps (our workspace — the apps are *distributed* into client workspaces, they don't live there). Generate at [api.slack.com/apps](https://api.slack.com/apps) → **Your App Configuration Tokens** → Generate Token, then store the **refresh token**:
 
 ```bash
-doppler secrets set SLACK_BOT_TOKEN '<xoxb-...>' SLACK_SIGNING_SECRET '<secret>' --project <doppler-project> --config dev --silent
-./scripts/worktree-setup.sh
-grep -E "^(COMPOSIO_API_KEY|OPENROUTER_API_KEY|GITHUB_TOKEN|SLACK_BOT_TOKEN|SLACK_SIGNING_SECRET)=" .env > .env.production
-mastra deploy --project <project> -y --env-file .env.production
+doppler secrets set SLACK_CONFIG_REFRESH_TOKEN '<xoxe-refresh-...>' --project agent-deployment-template --config dev --silent
 ```
 
-## 5. Verify
+Config tokens expire after 12h; the creation script rotates via `tooling.tokens.rotate` on every run and persists the new refresh token back to Doppler (refresh tokens are single-use — if a run dies between rotate and persist, regenerate in the UI).
 
-- Unsigned probe returns **401** (route live, signature enforcement working):
-  `curl -X POST <webhook-url> -d '{"type":"url_verification","challenge":"x"}'` → 401
-- Slack app settings → Event Subscriptions → **Retry** if the URL shows unverified → turns green.
-- DM the bot (or @mention it in a channel) **from an allowlisted email's account**. First real answer closes the loop.
+## 2. Create the deployment's app
+
+```bash
+node scripts/slack-app-create.mjs \
+  --name "<Agent Display Name>" --handle <agent-handle> \
+  --description "<agent description, ≤300 chars, shown in the Slack agent view>" \
+  --project <slug>-agent --agent-id <agent-id> \
+  --onboarding-url https://<slug>-onboarding.vercel.app \
+  --doppler-project <slug>-agent
+```
+
+This creates the app from the manifest (events + interactivity pointed at this deployment's webhook `https://<slug>-agent.server.mastra.cloud/api/agents/<agent-id>/channels/slack/webhook`, OAuth redirect registered to the onboarding callback) and stores `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET` / `SLACK_SIGNING_SECRET` / `SLACK_APP_ID` in the deployment's Doppler project.
+
+## 3. Activate public distribution (manual, ~10s)
+
+Open `https://api.slack.com/apps/<app-id>/distribute` → complete the checklist → **Activate Public Distribution**. This is what lets workspaces other than ours install the app. Unlisted distribution — **no Marketplace review involved**. No API exists for this step (checked 2026-07-20).
+
+## 4. Deploy with the new credentials
+
+```bash
+./scripts/worktree-setup.sh
+grep -E "^(COMPOSIO_API_KEY|OPENROUTER_API_KEY|GITHUB_TOKEN|SLACK_SIGNING_SECRET|SLACK_BOT_TOKEN|WORKOS_API_KEY|WORKOS_AGENT_USER_ID)=" .env > .env.production
+mastra deploy --project <slug>-agent -y --env-file .env.production
+```
+
+Onboarding needs the OAuth pair (Vercel env): `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` → `vercel env add` + `vercel deploy --prod --yes`.
+
+## 5. Client installs — the whole client experience
+
+On the onboarding console, section "Add the agent to Slack" → click **Add to Slack** → approve the scopes in their workspace → done; the bot appears. If their workspace restricts app installs, Slack routes an approval request to their admin automatically. Nobody pastes JSON or handles a token.
+
+## 6. Verify
+
+- Console shows "✅ installed in <workspace>".
+- Unsigned probe to the webhook returns **401** (signature enforcement live).
+- Slack app settings → Event Subscriptions → **Retry** if the URL shows unverified.
+- DM the bot from an allowlisted email's account. First real answer closes the loop.
 
 ## Allowlist enforcement
 
-Every message is checked against the agent account's Slack allowlist (docs/identity-model.md): sender's Slack user id → email via `users.info` (this is why `users:read.email` is in the manifest) → match against the list. Unlisted senders get a one-line decline pointing to the account holder; missing-scope failures surface in-band with a distinct message. **If an app predates the scope addition, add `users:read.email` under OAuth & Permissions and reinstall the app — otherwise the guard declines everyone.**
+Every message is checked against the agent account's Slack allowlist (docs/identity-model.md): sender's Slack user id → email via `users.info` (this is why `users:read.email` is in the scopes) → match against the list. Unlisted senders get a one-line decline pointing to the account holder; missing-scope failures surface in-band with a distinct message.
+
+## Appendix: manual flow (fallback, proven live on vt-poc 2026-07-20)
+
+If the manifest API path is unavailable: create the app by hand at [api.slack.com/apps](https://api.slack.com/apps) → **From a manifest** → **JSON tab** (the dialog defaults to JSON; YAML pasted there fails with "can't translate a manifest with errors") → paste the manifest from `scripts/slack-app-create.mjs` with the placeholders filled → **Install to Workspace** (requires being a member; only works for a workspace you're in). Copy the **Signing Secret** (Basic Information) and **Bot User OAuth Token** (OAuth & Permissions), then:
+
+```bash
+doppler secrets set SLACK_BOT_TOKEN '<xoxb-...>' SLACK_SIGNING_SECRET '<secret>' --project <doppler-project> --config dev --silent
+```
+
+and deploy as in step 4. `SLACK_BOT_TOKEN` in env is the fallback the runtime uses when no token is in agent-account metadata. If URL verification fails at creation, ignore it — it passes once the agent is deployed. **If an app predates the `users:read.email` scope, add it under OAuth & Permissions and reinstall — otherwise the guard declines everyone.**

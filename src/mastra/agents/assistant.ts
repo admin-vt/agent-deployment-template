@@ -4,7 +4,7 @@ import { createSlackAdapter } from '@chat-adapter/slack';
 import { templateConfig } from '../../../template.config';
 import { getAgentTools } from '../../lib/composio';
 import { workspaceTools } from '../../lib/workspace';
-import { getModelApiKey, getSlackAllowlist, resolveSlackEmail } from '../../lib/identity';
+import { getModelApiKey, getSlackAllowlist, getSlackBotToken, resolveSlackEmail } from '../../lib/identity';
 
 /**
  * The deployment's agent. Everything client-specific (name, instructions,
@@ -47,12 +47,25 @@ export const assistant = new Agent({
   memory: new Memory({
     options: { lastMessages: 20 },
   }),
-  // Slack attaches only when its credentials exist, so deployments without
-  // Slack (or before app install) run unchanged.
-  ...(process.env.SLACK_BOT_TOKEN && process.env.SLACK_SIGNING_SECRET
+  // Slack attaches once the app exists (signing secret is created with the
+  // app). The bot token arrives later, when the client clicks "Add to Slack"
+  // on the onboarding console — resolved per call from agent-account metadata,
+  // so an install needs no redeploy. Pre-install, the adapter's startup
+  // auth.test fails soft (warn) and no events arrive anyway.
+  ...(process.env.SLACK_SIGNING_SECRET
     ? {
         channels: {
-          adapters: { slack: createSlackAdapter() },
+          adapters: {
+            slack: createSlackAdapter({
+              botToken: getSlackBotToken,
+              // Slack Agent messaging experience — pairs with features.agent_view
+              // + assistant:write in the manifest (scripts/slack-app-create.mjs):
+              // thinking indicator, suggested prompts, native streaming.
+              agentView: true,
+              loadingMessages: [...templateConfig.slack.loadingMessages],
+              suggestedPrompts: { prompts: [...templateConfig.slack.suggestedPrompts] },
+            }),
+          },
           handlers: {
             onDirectMessage: allowlistGuard,
             onMention: allowlistGuard,
