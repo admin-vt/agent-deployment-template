@@ -41,9 +41,13 @@ export const workspaceInit = createTool({
   outputSchema: z.object({ output: z.string() }),
   execute: async ({ userId }) => {
     const { branch } = templateConfig.workspace;
+    // Self-healing: clear stale locks from interrupted duplicates; if the
+    // clone is corrupt (e.g. a race left an invalid HEAD), re-clone fresh.
     const result = await bash(
       userId,
-      `[ -d ${WORKSPACE_DIR}/.git ] || git clone -q --branch ${branch} ${remoteUrl()} ${WORKSPACE_DIR}; ` +
+      `[ -d ${WORKSPACE_DIR}/.git ] && rm -f ${WORKSPACE_DIR}/.git/*.lock; ` +
+        `git -C ${WORKSPACE_DIR} rev-parse --verify HEAD >/dev/null 2>&1 || rm -rf ${WORKSPACE_DIR}; ` +
+        `[ -d ${WORKSPACE_DIR}/.git ] || git clone -q --branch ${branch} ${remoteUrl()} ${WORKSPACE_DIR}; ` +
         `cd ${WORKSPACE_DIR} && git pull -q --ff-only 2>/dev/null; echo WORKSPACE_READY && ls -1 | head -20`,
     );
     return { output: result.stdout || result.stderr || String(result.error) };
@@ -79,7 +83,8 @@ export const workspaceCommit = createTool({
     const safeMessage = message.replace(/"/g, "'");
     const result = await bash(
       userId,
-      `cd ${WORKSPACE_DIR} && git config user.email agent@${templateConfig.client.slug}.local && ` +
+      `cd ${WORKSPACE_DIR} && rm -f .git/index.lock .git/config.lock && ` +
+        `git config user.email agent@${templateConfig.client.slug}.local && ` +
         `git config user.name "${templateConfig.agent.name}" && git add -A && ` +
         `(git diff --cached --quiet || git commit -q -m "${safeMessage}") && ` +
         `git push -q origin HEAD:${branch} && echo COMMIT_PUSHED && git log --oneline -1`,

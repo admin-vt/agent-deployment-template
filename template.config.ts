@@ -22,7 +22,7 @@ For tasks that require running commands or producing files, use the sandbox and 
    * Default model, OpenRouter model-router format: openrouter/<provider>/<model>.
    * Requires OPENROUTER_API_KEY. Swappable per client and per agent.
    */
-  model: 'openrouter/nvidia/nemotron-3-super-120b-a12b:free',
+  model: 'openrouter/anthropic/claude-sonnet-4.5',
 
   /** Composio toolkits enabled for this deployment (full catalog available) */
   composio: {

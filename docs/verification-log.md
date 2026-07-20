@@ -30,7 +30,13 @@ Evidence for the Phase 2 checklist in `IMPLEMENTATION-PLAN.md`. All runs live ag
 ## V5 — OpenRouter BYOK — MECHANISM VERIFIED, full A/B pending
 - Dev key verified via `GET /api/v1/key` (200, usage attribution visible).
 - Real completion executed through OpenRouter (free-tier model) with usage attributed to the calling key.
-- **Pending:** the two-account A/B (operator key vs. second user's key, observing each balance debit its own account) requires credits on the account and a second account. Run before first client relies on BYOK.
+- **2026-07-20, after funding the account:** real paid calls (claude-sonnet-4.5 through the deployed agent) debited the key's account — `usage: $0.54` visible on `GET /api/v1/key`. Usage bills the key owner, observed with real spend.
+- **Pending:** the two-account A/B (operator key vs. second user's key, each debiting its own balance) requires a second OpenRouter account. Run before the first client relies on BYOK.
+
+## Post-funding model swap + hardening (2026-07-20)
+- Default model switched to `openrouter/anthropic/claude-sonnet-4.5`. The free model (`nemotron-3-super:free`) was demonstrably unreliable at multi-step tool chains (empty final texts, wrong-tool wandering); Sonnet 4.5 narrates, chains, and reports failures cleanly.
+- Workspace tools hardened after observed sandbox races: stale-lock cleanup (`.git/*.lock`) on init/commit, corrupt-clone detection (`git rev-parse --verify HEAD`) with automatic re-clone.
+- **Vendor incident note:** Composio Remote Sandbox transport degraded for an extended window on 2026-07-20 (~01:30–02:30 UTC): all `COMPOSIO_REMOTE_BASH_TOOL` calls timed out across fresh sessions/users; catalog tools (Firecrawl) unaffected. The re-prove deployment's workspace-loop check is pending sandbox recovery — the identical code path is fully proven on vt-poc (commit on GitHub). The agent (Sonnet 4.5) surfaced the outage gracefully to the user rather than failing silently.
 
 ## Firecrawl direct API — PASS
 - `POST /v1/search` with the stored key returned live results (200).
