@@ -1,0 +1,107 @@
+---
+name: runbook
+description: Stand up a new client agent deployment from a fresh clone of this template — provisioning, config, deploy, verification. Use when creating deployment #N for a new client, or re-proving the template. Takes a fresh clone to "skeleton agent live"; does NOT design the client's agent (skills/tools/instructions are per-case work afterward).
+---
+
+# New deployment runbook
+
+Input needed from the operator before starting: **client name**, **slug** (kebab-case), **default model** (`openrouter/<provider>/<model>`), **toolkits** (Composio slugs), and which **GitHub org** owns the repos. Everything runs headless from this environment; read `stack-docs` for vendor doc sources if anything drifts.
+
+## 0. Preflight
+
+```bash
+command -v doppler mastra vercel gh   # all must exist
+doppler me && mastra auth whoami      # both authed (mastra via MASTRA_API_TOKEN)
+```
+
+## 1. Clone and configure
+
+```bash
+gh repo create <org>/<slug>-agent --private --template admin-vt/agent-deployment-template --clone
+cd <slug>-agent
+```
+
+Edit `template.config.ts`: client name/slug, agent id/name/instructions, model, toolkits, workspace repo `<org>/<slug>-agent-workspace`.
+
+## 2. Secrets (Doppler)
+
+```bash
+doppler projects create <slug>-agent
+# copy shared operator credentials from the template project, then set per-client ones:
+for k in COMPOSIO_API_KEY OPENROUTER_API_KEY GITHUB_TOKEN FIRECRAWL_API_KEY WORKOS_API_KEY WORKOS_CLIENT_ID; do
+  doppler secrets set $k "$(doppler secrets get $k --plain --project agent-deployment-template --config dev)" --project <slug>-agent --config dev --silent
+done
+doppler secrets set WORKOS_COOKIE_PASSWORD "$(openssl rand -base64 48 | tr -d '\n')" --project <slug>-agent --config dev --silent
+sed -i 's/PROJECT="agent-deployment-template"/PROJECT="<slug>-agent"/' scripts/worktree-setup.sh
+./scripts/worktree-setup.sh
+```
+
+## 3. Provision
+
+```bash
+# Workspace repo (the agent's persistent filesystem)
+tmp=$(mktemp -d) && cd $tmp && git init -qb main && echo "# <client> agent workspace" > README.md \
+  && git add . && git commit -qm "Initialize agent workspace" \
+  && gh repo create <org>/<slug>-agent-workspace --private --source=. --push && cd -
+
+# Mastra platform project (REST; CLI needs MASTRA_ORG_ID/MASTRA_PROJECT_ID for token auth)
+curl -s -X POST -H "Authorization: Bearer $MASTRA_API_TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"<slug>-agent"}' https://platform.mastra.ai/v1/server/projects
+# → record project.id and project.organizationId:
+doppler secrets set MASTRA_ORG_ID <org-id> MASTRA_PROJECT_ID <project-id> --project <slug>-agent --config dev --silent
+./scripts/worktree-setup.sh
+```
+
+Composio auth configs for each toolkit (skip if the org already has one):
+
+```bash
+node --input-type=module -e "
+import { Composio } from '@composio/core';
+const c = new Composio({ apiKey: process.env.COMPOSIO_API_KEY });
+const existing = await c.authConfigs.list({ toolkit: '<toolkit>' });
+if (!existing.items?.length) console.log(await c.authConfigs.create('<toolkit>', { type: 'use_custom_auth', authScheme: 'API_KEY', name: '<slug>-<toolkit>', credentials: { api_key: process.env.<TOOLKIT>_API_KEY } }));
+"
+```
+
+## 4. Deploy the agent
+
+```bash
+npm install && npx tsc --noEmit
+grep -E "^(COMPOSIO_API_KEY|OPENROUTER_API_KEY|GITHUB_TOKEN)=" .env > .env.production
+set -a && source .env && set +a
+mastra deploy --project <slug>-agent -y --env-file .env.production
+```
+
+## 5. Deploy onboarding
+
+```bash
+cd onboarding && npm install
+vercel link --yes --project <slug>-onboarding
+# env: WORKOS_API_KEY WORKOS_CLIENT_ID WORKOS_COOKIE_PASSWORD COMPOSIO_API_KEY FIRECRAWL_API_KEY
+#      COMPOSIO_TOOLKITS=<toolkits> NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://<slug>-onboarding.vercel.app/callback
+printf '%s' "<value>" | vercel env add <NAME> production   # per var
+vercel deploy --prod --yes
+```
+
+**Manual step (dashboard, once per deployment):** add `https://<slug>-onboarding.vercel.app/callback` as a redirect URI in the WorkOS dashboard for the environment in use.
+
+## 6. Verify (scripted checks)
+
+```bash
+# Agent answers
+curl -s -X POST https://<slug>-agent.server.mastra.cloud/api/agents/<agent-id>/generate \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"Use FIRECRAWL_SEARCH to find todays top AI news, answer in one sentence."}]}'
+
+# Memory round-trip: send a fact with {"memory":{"thread":"t1","resource":"u1"}}, recall it in a second request.
+
+# Workspace loop: ask the agent to workspace_init, write a file, workspace_commit —
+# then confirm the commit: gh api repos/<org>/<slug>-agent-workspace/commits --jq '.[0].commit.message'
+
+# Onboarding serves and gates:
+curl -sI https://<slug>-onboarding.vercel.app | head -3   # expect redirect to login
+```
+
+## 7. Slack (when the client's workspace is ready)
+
+Follow `docs/customization.md` → "Add a chat surface". Everything after this point — the client's real skills, tools, instructions — is per-case design work, not runbook scope.

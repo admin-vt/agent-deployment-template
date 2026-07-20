@@ -2,8 +2,11 @@
 
 Evidence for the Phase 2 checklist in `IMPLEMENTATION-PLAN.md`. All runs live against real services, 2026-07-19.
 
-## V1 — Mastra Hosted persistence
-**Status: pending deploy.** Runs as part of the PoC deployment (multi-turn thread, confirm history/memory survive across sessions). Will be updated here.
+## V1 — Mastra Hosted persistence — PASS
+- Deployed to Mastra platform (`vt-poc-agent.server.mastra.cloud`) with a `Memory` instance attached to the agent (`@mastra/memory`, `lastMessages: 20`). The platform provisions hosted storage automatically — no database in the repo, confirming D8.
+- Stored a fact in thread `v1-test-2` in one HTTP request; a **separate** request with the same `memory: { thread, resource }` params recalled it verbatim.
+- **Finding:** memory requires an explicit `Memory` instance on the agent — `threadId` params alone do nothing. Local `mastra dev` without configured storage falls back to non-durable in-memory storage (fine for dev).
+- **Finding:** the request param shape is `memory: { thread, resource }` (top-level `threadId`/`resourceId` are legacy).
 
 ## V2 — Mastra native Slack integration
 **Status: doc-verified; install deferred** (Slack workspace to be provided later).
