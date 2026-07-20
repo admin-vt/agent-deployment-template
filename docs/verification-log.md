@@ -42,3 +42,9 @@ Evidence for the Phase 2 checklist in `IMPLEMENTATION-PLAN.md`. All runs live ag
 
 ## Firecrawl direct API — PASS
 - `POST /v1/search` with the stored key returned live results (200).
+
+## Identity-model migration — verified live (2026-07-20)
+- vt-poc redeployed on the agent-account model: Composio session + workspace tools scope to the single agent account (`WORKOS_AGENT_USER_ID`); Firecrawl search verified end-to-end under the new identity.
+- Dynamic BYOK model resolution active (`model: async () => ({id, apiKey})`) — client key from agent-account metadata when set, dev key fallback observed working.
+- Onboarding agent console live (tools / model key / allowlist editor), allowlist seeded.
+- Slack allowlist guard deployed. **Pending operator step:** existing Slack app needs `users:read.email` added + reinstall; until then senders get the in-band "couldn't verify identity" diagnostic.
