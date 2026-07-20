@@ -19,9 +19,10 @@ Mastra platform project  ──────────────  https://<pr
         │
         ▼
 Composio (tool layer)                     GitHub (workspace repo)
-  ├─ auth configs per toolkit              └─ /mnt/files/workspace in the
-  ├─ connected accounts per user               sandbox; clone → work → push;
-  └─ Remote Sandbox per session                the repo is the durable state
+  ├─ auth configs per toolkit              └─ cloned to sandbox LOCAL disk
+  ├─ connected accounts per user               (/home/user/workspace);
+  └─ Remote Sandbox per session                clone → work → push; the
+                                               repo is the durable state
 
 Onboarding surface (onboarding/, Next.js on Vercel)
   ├─ WorkOS AuthKit login (proxy.ts middleware)
@@ -37,7 +38,7 @@ Onboarding surface (onboarding/, Next.js on Vercel)
 ## Key mechanics
 
 - **Single agent identity.** One agent account per deployment (docs/identity-model.md): a single WorkOS user whose id is the Composio userId for all tool sessions (`src/lib/composio.ts`, `src/lib/identity.ts`). Its WorkOS metadata carries the Slack allowlist and the client's model key. Slack messages are guarded by channel handlers: sender email (via `users.info`) checked against the allowlist, default closed.
-- **Sandbox state model.** Sandboxes are ephemeral; `/mnt/files` persists per Composio *session* only, and each Mastra server instance caches its own session — so parallel instances see divergent sandboxes. Durable work goes through the workspace repo via the three idempotent tools (`workspace_init` / `workspace_run` / `workspace_commit`), each of which self-heals the clone under a mutex before acting. Commands must tolerate concurrent re-execution — the backend double-dispatches (verified twice: V4 and ari-clickup).
+- **Sandbox state model.** Sandboxes are ephemeral; each Mastra server instance caches its own Composio session, so parallel instances see divergent sandboxes. The workspace repo lives on the sandbox's **local disk** (`/home/user/workspace`) — deliberately not on the `/mnt/files` s3fs mount, whose broken POSIX semantics corrupt git under concurrency (verified; see the log). Durable work goes through the workspace repo via the three idempotent tools (`workspace_init` / `workspace_run` / `workspace_commit`), each of which self-heals the clone under a mutex before acting and refuses (`WORKSPACE_NOT_READY`) rather than acting on a broken tree. Commands must tolerate concurrent re-execution — the backend double-dispatches, and SDK-abandoned commands keep running server-side (both verified).
 - **BYOK.** The client sets their OpenRouter key on the onboarding console; it lives in the agent account's metadata and the agent's model resolves it dynamically per request (`model: async () => ({ id, apiKey })`), with the deployment's `OPENROUTER_API_KEY` dev key as fallback.
 - **Per-deployment Slack app.** Each agent is its own Slack identity: an app created via the App Manifest API (`scripts/slack-app-create.mjs`), events pointed straight at this deployment's Mastra webhook (no shared app, no event router). The agent ships with only `SLACK_SIGNING_SECRET`; the bot token arrives when the client clicks "Add to Slack" and lives in agent-account metadata beside the allowlist and BYOK key (`getSlackBotToken`, `src/lib/identity.ts`). One manual step per app: Activate Public Distribution (UI-only). See `docs/slack-setup.md`.
 - **Config seam.** Every per-client value lives in `template.config.ts` (agent identity, model, toolkits, workspace repo, skills). The onboarding app mirrors the toolkit list via the `COMPOSIO_TOOLKITS` env var.

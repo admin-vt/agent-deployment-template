@@ -5,7 +5,7 @@ description: Use whenever a task produces files, scripts, documents, or results 
 
 # Working in the workspace
 
-Your workspace is a git repository cloned into your sandbox at `/mnt/files/workspace`. The sandbox is ephemeral — it can vanish between sessions — so **the repository is your only durable state**. Work that isn't committed and pushed does not exist tomorrow.
+Your workspace is a git repository cloned onto your sandbox's local disk at `/home/user/workspace`. The sandbox is ephemeral — it can vanish between sessions — so **the repository is your only durable state**. Work that isn't committed and pushed does not exist tomorrow. If a workspace tool answers `WORKSPACE_NOT_READY`, a concurrent operation is repairing the clone — retry once after a moment.
 
 ## Method
 
