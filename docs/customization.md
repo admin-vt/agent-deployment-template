@@ -4,9 +4,11 @@ Everything client-specific starts in `template.config.ts`. The runbook gets a sk
 
 ## Add a skill
 
-Create `skills/<name>/SKILL.md` (agentskills.io format — frontmatter `name` + `description`, body = instructions), then add `'./skills/<name>'` to `templateConfig.skills`. Redeploy. Skills are the per-client IP layer; keep them in the standard format so they survive any framework move.
+Create `skills/<name>/SKILL.md` (agentskills.io format — frontmatter `name` + `description`, body = instructions), then add `'./skills/<name>'` to `templateConfig.skills`. Redeploy. Skills are the per-client IP layer; keep them in the standard format so they survive any framework move. The shipped `skills/workspace` is the worked example of the format (a prior `web-research` example lives in git history).
 
 ## Enable a Composio toolkit
+
+The template ships with **no toolkits enabled** — every tool is a deliberate per-client grant, and content-ingesting tools (web search, email, docs) deserve particular thought: whatever they read, the agent reads, so they widen the prompt-injection surface for everyone on the allowlist.
 
 1. Add the slug to `templateConfig.composio.toolkits` and the `COMPOSIO_TOOLKITS` env var on the onboarding app (comma-separated).
 2. Ensure an auth config exists for the toolkit (`composio.authConfigs.create(...)` or the Composio dashboard).

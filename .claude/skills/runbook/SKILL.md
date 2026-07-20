@@ -124,10 +124,12 @@ curl -s -X POST -H "Authorization: Bearer $WORKOS_API_KEY" -H "Content-Type: app
 ## 6. Verify (scripted checks)
 
 ```bash
-# Agent answers
+# Agent answers (the workspace round-trip below also proves tool execution;
+# if the deployment enables a toolkit, exercise it too — e.g. firecrawl:
+# "Use FIRECRAWL_SEARCH to find todays top AI news, answer in one sentence.")
 curl -s -X POST https://<slug>-agent.server.mastra.cloud/api/agents/<agent-id>/generate \
   -H "Content-Type: application/json" \
-  -d '{"messages":[{"role":"user","content":"Use FIRECRAWL_SEARCH to find todays top AI news, answer in one sentence."}]}'
+  -d '{"messages":[{"role":"user","content":"Reply with one sentence introducing yourself."}]}'
 
 # Memory round-trip: send a fact with {"memory":{"thread":"t1","resource":"u1"}}, recall it in a second request.
 

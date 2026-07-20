@@ -18,10 +18,10 @@ export const templateConfig = {
     id: 'assistant',
     name: 'CHANGE-ME Agent Name', // e.g. 'Acme Research Assistant'
     // What the agent is for, which tools to lean on, how to answer. Example:
-    //   You are a research assistant for Acme. You answer questions using live
-    //   web search (Firecrawl tools) and cite the sources you used. For tasks
-    //   that require running commands or producing files, use the workspace
-    //   tools (workspace_init first, workspace_commit to persist results).
+    //   You are an operations assistant for Acme. For tasks that require
+    //   running commands or producing files, use the workspace tools
+    //   (workspace_init first, workspace_commit to persist results) and tell
+    //   the user exactly what you produced and where.
     instructions: `CHANGE-ME: the agent's role, tools to lean on, and answer style.`,
   },
 
@@ -31,9 +31,14 @@ export const templateConfig = {
    */
   model: 'openrouter/anthropic/claude-sonnet-4.5',
 
-  /** Composio toolkits enabled for this deployment (full catalog available) */
+  /**
+   * Composio toolkits enabled for this deployment (full catalog available).
+   * Deliberately empty by default — every tool is a per-client decision,
+   * especially ones that ingest external content (web search, email, docs).
+   * e.g. ['firecrawl'] for live web search.
+   */
   composio: {
-    toolkits: ['firecrawl'],
+    toolkits: [] as string[],
   },
 
   /** The agent's persistent filesystem: a git repo cloned into the sandbox */
@@ -55,13 +60,13 @@ export const templateConfig = {
     loadingMessages: ['Working on it…', 'Searching…', 'Reading sources…'],
     /** Up to 4 clickable prompts pinned when someone opens an agent thread */
     suggestedPrompts: [
-      { title: 'Research a topic', message: 'Research this topic and cite your sources: ' },
       { title: "What's in the workspace?", message: 'List what is currently in your workspace repo.' },
+      { title: 'Draft a document', message: 'Draft a document in the workspace about: ' },
     ],
   },
 
   /** Skills shipped with this deployment (standard SKILL.md directories) */
-  skills: ['./skills/web-research'],
+  skills: ['./skills/workspace'],
 } as const;
 
 export type TemplateConfig = typeof templateConfig;
