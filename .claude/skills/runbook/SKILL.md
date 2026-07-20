@@ -83,7 +83,13 @@ printf '%s' "<value>" | vercel env add <NAME> production   # per var
 vercel deploy --prod --yes
 ```
 
-**Manual step (dashboard, once per deployment):** add `https://<slug>-onboarding.vercel.app/callback` as a redirect URI in the WorkOS dashboard for the environment in use.
+Register the callback as a WorkOS redirect URI (API, no dashboard needed):
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $WORKOS_API_KEY" -H "Content-Type: application/json" \
+  -d '{"uri":"https://<slug>-onboarding.vercel.app/callback"}' \
+  https://api.workos.com/user_management/redirect_uris
+```
 
 ## 6. Verify (scripted checks)
 
