@@ -85,11 +85,24 @@ doppler secrets set COMPOSIO_API_KEY <api_key> --project <slug>-agent --config d
 
 Note: org endpoints live under `/api/v3.1/org/owner/*` with the `x-org-api-key` header — other paths shown in some docs (e.g. `/v3.1/org/projects`) 404.
 
-Composio auth config for each toolkit, created inside this agent's project (`WORKOS_AGENT_USER_ID` is the Composio userId for all sessions). Two variants:
+Composio auth config for each toolkit, created inside this agent's project (`WORKOS_AGENT_USER_ID` is the Composio userId for all sessions). **Every toolkit listed in `templateConfig.composio.toolkits` must have an auth config before you deploy with it** — a listed toolkit without one breaks every `/generate` with `400 ToolRouterV2_BadRequest code 4300` (verified on vt-twitter); binding only ACTIVE connections does not exempt the toolkit list. If a toolkit's auth config can't be created yet (e.g. waiting on client credentials), deploy with `toolkits: []` and add it + redeploy once the config exists.
+
+First check what auth the toolkit actually supports — the "OAuth = Composio-managed" assumption does not hold universally (verified: `twitter` has no managed credentials; managed-auth create fails with code 306 `Auth_Config_DefaultAuthConfigNotFound`):
 
 ```bash
-# OAuth toolkits (clickup, gmail, notion, …) — Composio-managed OAuth; the
-# client authorizes later via the onboarding console's Connect Link:
+node --input-type=module -e "
+import { Composio } from '@composio/core';
+const c = new Composio({ apiKey: process.env.COMPOSIO_API_KEY });
+const tk = await c.toolkits.get('<toolkit>');
+console.log(JSON.stringify(tk.authConfigDetails, null, 2));  // schemes + which fields are required
+"
+```
+
+Then the matching variant:
+
+```bash
+# OAuth toolkits with Composio-managed credentials (clickup, gmail, notion, …);
+# the client authorizes later via the onboarding console's Connect Link:
 node --input-type=module -e "
 import { Composio } from '@composio/core';
 const c = new Composio({ apiKey: process.env.COMPOSIO_API_KEY });
@@ -104,6 +117,15 @@ import { Composio } from '@composio/core';
 const c = new Composio({ apiKey: process.env.COMPOSIO_API_KEY });
 const existing = await c.authConfigs.list({ toolkit: '<toolkit>' });
 if (!existing.items?.length) console.log(await c.authConfigs.create('<toolkit>', { type: 'use_custom_auth', authScheme: 'API_KEY', name: '<slug>-<toolkit>', credentials: { api_key: process.env.<TOOLKIT>_API_KEY } }));
+"
+
+# OAuth toolkits WITHOUT managed credentials (e.g. twitter) — needs an app on the
+# provider's developer platform (client-owned; may require browser signup / paid tier):
+node --input-type=module -e "
+import { Composio } from '@composio/core';
+const c = new Composio({ apiKey: process.env.COMPOSIO_API_KEY });
+const existing = await c.authConfigs.list({ toolkit: '<toolkit>' });
+if (!existing.items?.length) console.log(await c.authConfigs.create('<toolkit>', { type: 'use_custom_auth', authScheme: 'OAUTH2', name: '<slug>-<toolkit>', credentials: { client_id: process.env.<TOOLKIT>_CLIENT_ID, client_secret: process.env.<TOOLKIT>_CLIENT_SECRET } }));
 "
 ```
 
